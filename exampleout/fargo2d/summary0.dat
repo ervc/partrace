@@ -1,0 +1,169 @@
+==============================
+SUMMARY:
+==============================
+SETUP 'fargo' of FARGO3D Public version 1.3
+Cylindrical mesh of size 360 x 512 x 1 (184320 cells in total)
+10 outputs scheduled
+LONGSUMMARY sticky flag not activated: no source file archive
+2 planets
+
+==============================
+COMPILATION OPTION SECTION:
+==============================
+-DBIGMEM -DNFLUIDS=1 -DSTOCKHOLM -DX -DY -DISOTHERMAL -DCYLINDRICAL -DLEGACY -DPOTENTIAL -DVISCOSITY
+Ghost layer sizes: NGHX=0	NGHY=3	NGHZ=0
+
+==============================
+RUNTIME GENERAL SECTION:
+==============================
+Current Working Directory is 
+Command line: ./fargo3d ./astr_final/in/test.par 
+Parameter file: ./astr_final/in/test.par
+Run on 1 process
+Hosts:
+   Rank 0 on Erics-MacBook-Pro.local
+
+==============================
+OUTPUT SPECIFIC SECTION:
+==============================
+OUTPUT 0 at simulation time 0 (2021-5-7 14:57:48)
+
+==============================
+PREPROCESSOR MACROS SECTION:
+==============================
+R0 = (1.0) = 1
+R_MU = (1.0) = 1
+MU0 = (1.0) = 1
+MSTAR = (1.0) = 1
+G = (1.0) = 1
+STEFANK = (5.6705e-5*pow((1.0)/36149835.0,4.0)*pow((1.0)/6.674e-8,-2.5)*pow((1.0)/1.9891e33,-1.5)*pow((1.0)/(5.2*1.49597871e13),-0.5)) = 29895.8
+C0 = (2.99792458e10*sqrt((1.0)/6.674e-8*(1.0)/1.9891e33/(1.0)*(5.2*1.49597871e13))) = 22949
+TCMB = (2.73*((1.0)*(1.0)/(1.0)/(1.0))/(6.674e-8*1.9891e33/(5.2*1.49597871e13)/36149835.0)) = 5.78302e-05
+THRESHOLD_STELLAR_MASS = 0.05*(1.0) = 0.05
+
+==============================
+PARAMETERS SECTION:
+==============================
+   ALPHA	0
+   AMBIPOLARDIFFUSIONCOEFF	0
+   ASPECT	auto
+   ASPECTRATIO	0.00072759
+   AUTOCOLOR	1
+   BETA	0
+   CFL	0.44
+   CMAP	magma
+   COLORBAR	1
+   COORDINATES	cylindrical
+   CS	1
+   DAMPINGZONE	1.15
+   DT	0.6283185307
+   ECCENTRICITY	0
+   EXCLUDEHILL	0
+   FIELD	gasdens
+   FLARINGINDEX	0.351
+   FRAME	F
+   FUNCARCHFILE	std/func_arch.cfg
+   GAMMA	1.66666667
+   HALLEFFECTCOEFF	0
+   INCLINATION	0
+   INDIRECTTERM	1
+   KILLINGBCCOLATITUDE	-0.2
+   MASSTAPER	0
+   NINTERM	100
+   NOISE	0
+   NSNAP	0
+   NTOT	1000
+   NU	1e-05
+   NX	360
+   NY	512
+   NZ	1
+   OHMICDIFFUSIONCOEFF	0
+   OMEGAFRAME	0
+   OORTA	-0.75
+   ORBITALRADIUS	0
+   OUTPUTDIR	./outputs/fargo/
+   PERIODICY	0
+   PERIODICZ	0
+   PLANETCONFIG	astr_final/in/planets.cfg
+   PLANETMASS	0
+   PLOTLINE	field[:,:,0]
+   PLOTLOG	1
+   REALTYPE	float64
+   RELEASEDATE	0
+   RELEASERADIUS	0
+   RESONANCE	0.5
+   ROCHESMOOTHING	0
+   SEMIMAJORAXIS	0
+   SETUP	fargo
+   SIGMA0	4.1799
+   SIGMASLOPE	0.89
+   SPACING	default
+   TAUDAMP	0.3
+   THICKNESSSMOOTHING	0.6
+   VERTICALDAMPING	0
+   VMAX	1
+   VMIN	0
+   VTK	0
+   WRITEBX	0
+   WRITEBY	0
+   WRITEBZ	0
+   WRITEDENSITY	0
+   WRITEDIVERGENCE	0
+   WRITEENERGY	0
+   WRITEENERGYRAD	0
+   WRITETAU	0
+   WRITEVX	0
+   WRITEVY	0
+   WRITEVZ	0
+   XMAX	3.1415926536
+   XMIN	-3.1415926536
+   YMAX	4
+   YMIN	0.2
+   ZMAX	1
+   ZMIN	0
+*** Input file: ./astr_final/in/test.par
+#-----------
+Setup		fargo
+#### Disk Parameters
+AspectRatio		0.00072759
+FlaringIndex		0.351
+Sigma0		4.1799
+SigmaSlope		0.89
+AlphaViscosity		0.001
+#### Planet Parmeters
+PlanetConfig		astr_final/in/planets.cfg
+Eccentricity		0.000
+#### Mesh Parameters
+NX		360
+NY		512
+RadialSpacing		Logarithmic
+Xmin		-3.1415926536
+Xmax		3.1415926536
+Ymin		0.2000000000
+Ymax		4.0000000000
+OmegaFrame		0.00
+Frame		F
+#### Output Parameters
+DT		0.6283185307
+Ninterm		100
+Ntot		1000
+OuputDir		astr_final/out
+
+#-----------
+
+==============================
+PLANETARY SYSTEM SECTION:
+==============================
+#### (X,Y,Z,VX,VY,VZ,mass)
+#### Planet 0 out of 2
+1	0	0	-0	1.00020749847219	0	0.00041504
+#### Planet 1 out of 2
+1.65	0	0	-0	0.778708935392812	0	0.00053955
+*** Planetary system config file: astr_final/in/planets.cfg
+#-----------
+#### Planet initial conditions
+#PlanetName	Distance	Mass	Accretion	FeelsDisk	FeelsOthers
+planet0		1.000		0.00041504		0.000		NO		NO
+planet1		1.650		0.00053955		0.000		NO		NO
+
+#-----------
