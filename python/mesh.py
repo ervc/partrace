@@ -1,20 +1,87 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from .constants import *
 
 class Mesh():
     """Fargo domain mesh. Contains the domain, density, 
-    and velocity mesh
+    and velocity mesh.
     """
-    def __init__(self, fargodir):
+    def __init__(self, fargodir, quiet=False):
         self.fargodir = fargodir
         self.ndim = 3
+        self.read_variables()
         self.get_domain()
-        self.get_centers()
+        if not quiet:
+            self.confirm()
         self.state = {}
+        self.n = {}
 
-    def get_domain(self,ghostcells = True):
+    def confirm(self):
+        conf_msg = ''
+        conf_msg += 'Mesh created\n'
+        conf_msg += f'Read in from {self.fargodir}\n'
+        conf_msg += f'nx, ny, nz = {self.nx, self.ny, self.nz}\n'
+        conf_msg += f'ndim = {self.ndim}\n'
+        conf_msg += f'coord. system = {self.variables["COORDINATES"]}\n'
+        if 'UNITS' not in self.variables:
+            conf_msg += f'units = code\n'
+        elif self.variables['UNITS']=='0':
+            conf_msg += f'units = code\n'
+        else:
+            conf_msg += f'units = {self.variables["UNITS"]}\n'
+        conf_msg += (f'There are {len(self.variables)} additional '
+                     + f'variables stored in Mesh.variables\n')
+
+        print(conf_msg)
+
+    def read_variables(self):
+        """Reads variables.par file and cretes dict of variables. Also
+        read in from summary0.dat to get scaling laws"""
+        self.variables={}
+        with open(self.fargodir+'/variables.par','r') as f:
+            for line in f:
+                label,data = line.split()
+                self.variables[label] = data
+
+        units = 'code'
+        flags = []
+        with open(self.fargodir+'/summary0.dat','r') as f:
+            header = False
+            section = ''
+            for line in f:
+                if line[0:3] == "===":
+                    header = not header
+                    continue
+                if header:
+                    section = line.strip()
+                if section == 'COMPILATION OPTION SECTION:' and not header:
+                    if line[:2] == '-D':
+                        flags = line.split()
+                if section == 'PREPROCESSOR MACROS SECTION:' and not header:
+                    if len(line.split()) > 1:
+                        quantity = line.split()[0]
+                        val = line.split()[-1]
+                        self.variables[quantity] = val
+
+        if '-DRESCALE' in flags:
+            if '-DCGS' in flags:
+                units = 'CGS'
+            elif '-DMKS' in flags:
+                units = 'MKS'
+            else:
+                raise Exception('Unable to determine units from summary0.dat'
+                    +' see flags\n',flags)
+        if 'UNITS' not in self.variables:
+            self.variables['UNITS'] = units
+
+
+    def get_domain(self,ghostcells=True):
+        """Reads in domain.dat files and creates arrays of cell edge 
+        and cell center values. Also determines dimensionality of
+        output.
+        """
         # default number of ghost cells out, check fargo distribution
-        NGHOST = 3 
+        NGHOST = 3
 
         # x edges = azimuth, no ghost cells
         self.xedges = []
@@ -22,6 +89,7 @@ class Mesh():
             for line in f:
                 self.xedges.append(float(line))
         self.nx = len(self.xedges)-1
+        self.xedges = np.array(self.xedges)
 
         # y edges = radial, contains ghost cells
         self.yedges = []
@@ -34,6 +102,7 @@ class Mesh():
         else:
             self.yedges = list(allyedges)
         self.ny = len(self.yedges)-1
+        self.yedges = np.array(self.yedges)
 
         # zedges = height or polar angle, may contain ghost cells, 
         # may not exist
@@ -46,25 +115,32 @@ class Mesh():
             # simulation is 2d
             self.ndim = 2
             self.zedges = [-1,1]
-            self.nz = 0
         else:
             if ghostcells:
                 self.zedges = list(allzedges[NGHOST:-NGHOST])
             else:
                 self.zedges = list(allzedges)
-            self.nz = len(self.zedges)-1
+        self.nz = len(self.zedges)-1
+        self.zedges = np.array(self.zedges)
+
+        self.get_centers()
 
     def get_centers(self):
+        """Helper function to get cell center values"""
         self.xcenters = list([(self.xedges[i]
                                 + self.xedges[i+1])/2 for i in range(self.nx)])
         self.ycenters = list([(self.yedges[i]
                                 + self.yedges[i+1])/2 for i in range(self.ny)])
         self.zcenters = list([(self.zedges[i]
                                 + self.zedges[i+1])/2 for i in range(self.nz)])
+        self.xcenters = np.array(self.xcenters)
+        self.ycenters = np.array(self.ycenters)
+        self.zcenters = np.array(self.zcenters)
 
     def read_state(self,state,n=-1):
-        # readin the grid data for output 'state' at output number n. 
-        # Default n=-1 gives last ouptut
+        """readin the grid data for output 'state' at output number n. 
+        Default n=-1 gives last ouptut
+        """
         MAXN = 1000
 
         if n < 0:
@@ -80,16 +156,16 @@ class Mesh():
                         + ' May not be the last output.')
             n = lastn+1+n
 
+        self.n[state] = n
         statefile = self.fargodir+f'/{state}{n}.dat'
 
-        if self.ndim == 3:
-            state_arr = np.fromfile(statefile).reshape(self.nx,self.ny,self.nz)
-        else:
-            state_arr = np.fromfile(statefile).reshape(self.ny,self.nx)
+        state_arr = np.fromfile(statefile).reshape(self.nz,self.ny,self.nx)
         self.state[state] = state_arr
         return state_arr
 
-    def plot_state(self,state,ax=None,log=True,*args,**kwargs):
+    def plot_state(self,state,ax=None,log=True,itheta=-1,yunits=None,
+                    *args,**kwargs):
+        """Create 2d plot of state and return image"""
         if state not in self.state:
             arr = self.read_state(state)
         else:
@@ -103,13 +179,88 @@ class Mesh():
             arr = np.log10(arr)
             label = 'log '+state
 
+        yscale = 1
+        if yunits == 'au':
+            yscale = 1/AU
+
+        im = ax.pcolormesh(self.xedges,self.yedges*yscale,arr[itheta],
+                            *args,**kwargs)
+        cb = plt.colorbar(im,ax=ax,label=label,location='bottom')
+
+        dt_out = float(self.variables['DT'])*float(self.variables['NINTERM'])
+        GM = float(self.variables['G'])*float(self.variables['MSTAR'])
+        R = float(self.variables['R0'])
+        R3 = R*R*R
+        torbit = TWOPI * np.sqrt(R3/GM)
+        norbit = self.n[state]*dt_out/torbit
+        title = f'Norbit = {norbit:g}'
         if self.ndim == 3:
-            im = ax.pcolormesh(self.xedges,self.yedges,arr[:,:,-1],
-                                *args,**kwargs)
+            title+=f'\ntheta = {self.zcenters[itheta]:.3f}'
+        ax.set_title(title)
+
+        units = 'unitless'
+        if yunits:
+            units = yunits
+
         else:
-            im = ax.pcolormesh(self.xedges,self.yedges,arr,*args,**kwargs)
-        cb = plt.colorbar(im,ax=ax,label=label)
+            if self.variables['UNITS'] == 'CGS':
+                units = 'cm'
+            elif self.variables['UNITS'] == 'MKS':
+                units = 'm'
+        ax.set(
+            xlabel='azimuth [radians]',
+            ylabel=f'radius [{units}]'
+        )
 
         return im
+
+
+    def get_cell_from_pol(self,x,y,z=0):
+        """Determine the i,j,k cell index for polar coordinate x,y,z 
+        in specified units
+        """
+
+        flag = 0
+        which = ''
+        if x < self.xedges[0] or x > self.xedges[-1]:
+            flag += 1
+            which += 'x'
+        if y < self.yedges[0] or y > self.yedges[-1]:
+            flag += 1
+            which += 'y'
+        if z < self.zedges[0] or z > self.zedges[-1]:
+            flag += 1
+            which += 'z'
+
+        errmessage = (f'Error: coordinate {x,y,z} is not in grid\n'
+                        + f'Problem in {which} direction\n'
+                        + f'  xlims = {self.xedges[0], self.xedges[-1]}\n'
+                        + f'  ylims = {self.yedges[0], self.yedges[-1]}\n'
+                        + f'  zlims = {self.zedges[0], self.zedges[-1]}')
+
+        if flag > 0:
+            raise Exception(errmessage)
+
+        icell = 0
+        for i in range(self.nx):
+            icell = i
+            if self.xedges[i+1] >= x:
+                break
+        jcell = 0
+        for j in range(self.ny):
+            jcell = j
+            if self.yedges[j+1] >= y:
+                break
+        if self.ndim==2:
+            return icell,jcell
+
+        kcell = 0
+        for k in range(self.nz):
+            kcell = k
+            if self.zedges[k+1] >= z:
+                break
+        return icell,jcell,kcell
+
+
 
 
