@@ -1,7 +1,7 @@
 ==============================
 SUMMARY:
 ==============================
-SETUP 'fargo' of FARGO3D Public version 1.3
+SETUP 'fargo' of FARGO3D git version 2.0-16-gceef70c6
 Cylindrical mesh of size 384 x 128 x 1 (49152 cells in total)
 50 outputs scheduled
 LONGSUMMARY sticky flag not activated: no source file archive
@@ -10,23 +10,30 @@ LONGSUMMARY sticky flag not activated: no source file archive
 ==============================
 COMPILATION OPTION SECTION:
 ==============================
--DBIGMEM -DNFLUIDS=1 -DSTOCKHOLM -DX -DY -DISOTHERMAL -DCYLINDRICAL -DLEGACY -DPOTENTIAL -DVISCOSITY
+-DBIGMEM -DPARALLEL -DNFLUIDS=1 -DSTOCKHOLM -DX -DY -DISOTHERMAL -DCYLINDRICAL -DLEGACY -DPOTENTIAL -DVISCOSITY
 Ghost layer sizes: NGHX=0	NGHY=3	NGHZ=0
 
 ==============================
 RUNTIME GENERAL SECTION:
 ==============================
 Current Working Directory is 
-Command line: ./fargo3d ./setups/fargo/fargo.par 
-Parameter file: ./setups/fargo/fargo.par
-Run on 1 process
+Command line: ./fargo3d testrun/fargo.par 
+Parameter file: testrun/fargo.par
+Run on 8 processes
 Hosts:
-   Rank 0 on Erics-MacBook-Pro.local
+   Rank 0 on midway2-0004.rcc.local
+   Rank 1 on midway2-0004.rcc.local
+   Rank 2 on midway2-0004.rcc.local
+   Rank 3 on midway2-0004.rcc.local
+   Rank 4 on midway2-0004.rcc.local
+   Rank 5 on midway2-0004.rcc.local
+   Rank 6 on midway2-0004.rcc.local
+   Rank 7 on midway2-0004.rcc.local
 
 ==============================
 OUTPUT SPECIFIC SECTION:
 ==============================
-OUTPUT 25 at simulation time 157.08 (2021-5-4 15:26:17)
+OUTPUT 25 at simulation time 157.08 (2022-6-22 13:56:18)
 
 ==============================
 PREPROCESSOR MACROS SECTION:
@@ -78,13 +85,13 @@ PARAMETERS SECTION:
    NY	128
    NZ	1
    OHMICDIFFUSIONCOEFF	0
-   OMEGAFRAME	1.0434462789487
+   OMEGAFRAME	1.00049987506356
    OORTA	-0.75
    ORBITALRADIUS	0
    OUTPUTDIR	./outputs/fargo/
    PERIODICY	0
    PERIODICZ	0
-   PLANETCONFIG	planets/MobileJupiter.cfg
+   PLANETCONFIG	planets/jupiter.cfg
    PLANETMASS	0
    PLOTLINE	field[:,:,0]
    PLOTLOG	1
@@ -121,9 +128,10 @@ PARAMETERS SECTION:
    YMIN	0.4
    ZMAX	1
    ZMIN	0
-*** Input file: ./setups/fargo/fargo.par
+*** Input file: testrun/fargo.par
 #-----------
-Setup			fargo
+### Parameter file for the setup 'fargo'
+Setup			fargo		
 
 ### Disk parameters
 
@@ -145,7 +153,7 @@ TauDamp 0.3
 
 ### Planet parameters
 
-PlanetConfig		planets/MobileJupiter.cfg
+PlanetConfig		planets/jupiter.cfg
 ThicknessSmoothing 	0.6
 RocheSmoothing 		0.0
 Eccentricity		0.0
@@ -182,19 +190,14 @@ PLANETARY SYSTEM SECTION:
 ==============================
 #### (X,Y,Z,VX,VY,VZ,mass)
 #### Planet 0 out of 1
-0.971958834271618	-0.00779653992248958	0	0.00407498642430849	1.0156269963337	0	0.001
-*** Planetary system config file: planets/MobileJupiter.cfg
+0.999999999999267	-5.82520143233012e-15	0	5.49837952945609e-14	1.00049987506283	0	0.001
+*** Planetary system config file: planets/jupiter.cfg
 #-----------
 ###########################################################
-#
 #   Planetary system initial configuration
-#
-# Note: Accretion is the inverse of the accretion
-#       time scale (1.0 for Kley's standard set-up)
-#	Set to 0 to turn accretion off
 ###########################################################
 
 # Planet Name 	Distance	Mass	 Accretion	Feels Disk	Feels Others
-Jupiter	 	1.0		0.001	 0.0		YES   		NO
+Jupiter		1.0		0.001	 0.0	  	NO		NO
 
 #-----------

@@ -15,7 +15,7 @@ public:
 		total_cells = nx*ny*nz;
 	}
 	int getIndex(int i, int j, int k) {
-		return ny*nz*i + nz*j + k;
+		return nx*ny*k + nx*j + i;
 	}
 };
 

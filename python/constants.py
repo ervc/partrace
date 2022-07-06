@@ -1,14 +1,14 @@
-import numpy as np
-import astropy.constants as const
-from astropy import units as u
-
-MSUN = const.M_sun.cgs.value
-G = const.G.cgs.value
+MSUN = 1.98847e33
+G = 6.67430e-8
 GM = G*MSUN
-AU = const.au.cgs.value
-BK = const.k_B.cgs.value
-MH = const.m_p.cgs.value
+AU = 1.495978707e13
+BK = 1.380649e-16
+MH = 1.67262192369e-24
+YR = 3.1557600e7
 MBAR = 2.3*MH
-YR = ((1*u.yr).to(u.s)).value
-PI = np.pi
+try:
+	import numpy as np
+	PI = np.pi
+except ImportError:
+	PI = 3.14519265358979323846264338327950288419716
 TWOPI = 2*PI
