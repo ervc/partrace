@@ -22,8 +22,8 @@ def outline_cell(i,j,mesh,ax):
     rect = Rectangle((xlo,ylo),width,height,ec='k',fc=None,fill=False)
     ax.add_patch(rect)
 
-if __name__ == '__main__':
-    mesh = Mesh(FARGOOUT)
+def main(fargodir):
+    mesh = Mesh(fargodir)
 
     for state in ['gasdens','gasvx','gasvy']:
         mesh.read_state(state,-1)
@@ -138,6 +138,11 @@ if __name__ == '__main__':
     print(mesh.cartcenters['x'][k,j,i],
           mesh.cartcenters['y'][k,j,i],
           mesh.cartcenters['z'][k,j,i])
+
+if __name__ == '__main__':
+    main(FARGODIR)
+
+    
 
 
         
