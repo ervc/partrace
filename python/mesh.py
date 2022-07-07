@@ -294,6 +294,9 @@ class Mesh():
         """returns 3D arrays of cartesian velocities. Note: velocities
         are stored at cell edges, but we use the centers here...
         Need to check this!
+
+        This must be called by the user to ensure that proper state
+        variables have been read in.
         """
         # determine which n we're looking at if already defined
         n = -1
