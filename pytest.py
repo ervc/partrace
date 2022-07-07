@@ -25,17 +25,6 @@ def outline_cell(i,j,mesh,ax):
 if __name__ == '__main__':
     mesh = Mesh(FARGOOUT)
 
-    # x = mesh.xedges[0] + np.random.random()*(mesh.xedges[-1]-mesh.xedges[0])
-    # y = mesh.yedges[0] + np.random.random()*(mesh.yedges[-1]-mesh.yedges[0])
-
-    # if mesh.ndim == 2:
-    #   i,j = mesh.get_cell_from_polar(x,y)
-    # elif mesh.ndim == 3:
-    #   z = np.pi/2
-    #   i,j,k = mesh.get_cell_from_polar(x,y,z)
-
-    # print(mesh.variables)
-
     for state in ['gasdens','gasvx','gasvy']:
         mesh.read_state(state,-1)
 
@@ -47,27 +36,41 @@ if __name__ == '__main__':
     # imvx = mesh.plot_state('gasvx',log=False,ax=axs[1],yunits='au')
     # imvy = mesh.plot_state('gasvy',log=False,ax=axs[2],yunits='au')
 
-    imrho = axs[0].pcolormesh(mesh.xedges,mesh.yedges/const.AU,
-        np.log10(mesh.state['gasdens'][kthet]),cmap='inferno',
+
+    ### plotting
+    lenscale = 1
+    vscale = 1
+    if mesh.variables['UNITS'] == 'CGS':
+        lenscale = 1/const.AU
+        vscale = auperyr
+    arr = np.log10(mesh.state['gasdens'][kthet])
+    imrho = axs[0].pcolormesh(mesh.edges['x'][kthet],
+        mesh.edges['y'][kthet]*lenscale,
+        arr,cmap='inferno',
     )
     label = 'log rho [cm-2]'
     if mesh.ndim == 3:
         label = 'log rho [cm-3]'
     cbrho = plt.colorbar(imrho,ax=axs[0],label=label,location='top')
+    axs[0].set(ylabel='R [au]',xlabel='azimuth [rad]')
 
-    arr = mesh.state['gasvx'][kthet]*auperyr
+    arr = mesh.state['gasvx'][kthet]*vscale
     vmin,vmax = get_minmaxabs(arr)
-    imvx = axs[1].pcolormesh(mesh.xedges,mesh.yedges/const.AU,
+    imvx = axs[1].pcolormesh(mesh.edges['x'][kthet],
+        mesh.edges['y'][kthet]*lenscale,
         arr, vmin=vmin,vmax=vmax,cmap='coolwarm',
     )
     cbvx = plt.colorbar(imvx,ax=axs[1],label='vx-v0 [au/yr]',location='top')
+    axs[1].set(xlabel='azimuth [rad]')
 
-    arr = mesh.state['gasvy'][kthet]*auperyr
+    arr = mesh.state['gasvy'][kthet]*vscale
     vmin,vmax = get_minmaxabs(arr)
-    imvy = axs[2].pcolormesh(mesh.xedges,mesh.yedges/const.AU,
+    imvy = axs[2].pcolormesh(mesh.edges['x'][kthet],
+        mesh.edges['y'][kthet]*lenscale,
         arr, vmin=vmin,vmax=vmax,cmap='coolwarm',
     )
     cbvy = plt.colorbar(imvy,ax=axs[2],label='vy [au/yr]',location='top')
+    axs[2].set(xlabel='azimuth [rad]')
 
     dt_out = float(mesh.variables['DT'])*float(mesh.variables['NINTERM'])
     GM = float(mesh.variables['G'])*float(mesh.variables['MSTAR'])
@@ -80,21 +83,52 @@ if __name__ == '__main__':
         title+=f'\ntheta = {mesh.zcenters[kthet]:.3f}'
     fig.suptitle(title)
 
-    for i in [1,2]:
-        axs[i].set_ylabel('')
-
-    # ax.plot(x,y,marker='x',c='k')
-    # outline_cell(i,j,mesh,ax)
-    # print(x,y)
-    # print(mesh.xcenters[i],mesh.ycenters[j])
-
-    # ax.set(
-    #   xlim = (mesh.xcenters[i-5],mesh.xcenters[i+5]),
-    #   ylim = (mesh.ycenters[j-5],mesh.ycenters[j+5])
-    # )
-
     plt.show()
 
+
+    ### cartesian
+    print(mesh.edges['x'].shape)
+    print(mesh.cartedges['x'].shape)
+    fig,axs = plt.subplots(1,3,sharey=True)
+
+    ax = axs[0]
+    arr = np.log10(mesh.state['gasdens'][kthet])
+    imrho = ax.pcolormesh(mesh.cartedges['x'][kthet]*lenscale,
+        mesh.cartedges['y'][kthet]*lenscale,
+        arr,cmap='inferno',
+    )
+    label = 'log rho [cm-2]'
+    if mesh.ndim == 3:
+        label = 'log rho [cm-3]'
+    cbrho = plt.colorbar(imrho,ax=ax,label=label,location='top')
+    ax.set(ylabel='y [au]',xlabel='x [au]')
+
+    ax = axs[1]
+    arr = mesh.state['gasvx'][kthet]*vscale
+    vmin,vmax = get_minmaxabs(arr)
+    imvx = ax.pcolormesh(mesh.cartedges['x'][kthet]*lenscale,
+        mesh.cartedges['y'][kthet]*lenscale,
+        arr, vmin=vmin,vmax=vmax,cmap='coolwarm',
+    )
+    cbvx = plt.colorbar(imvx,ax=ax,label='vx-v0 [au/yr]',location='top')
+    ax.set(xlabel='x [au]')
+
+    ax = axs[2]
+    arr = mesh.state['gasvy'][kthet]*vscale
+    vmin,vmax = get_minmaxabs(arr)
+    imvy = ax.pcolormesh(mesh.cartedges['x'][kthet]*lenscale,
+        mesh.cartedges['y'][kthet]*lenscale,
+        arr, vmin=vmin,vmax=vmax,cmap='coolwarm',
+    )
+    cbvy = plt.colorbar(imvy,ax=ax,label='vy [au/yr]',location='top')
+    ax.set(xlabel='x [au]')
+
+    for ax in axs:
+        ax.set(aspect='equal')
+
+    fig.suptitle(title)
+
+    plt.show()
 
 
         

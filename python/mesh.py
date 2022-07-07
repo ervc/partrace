@@ -79,7 +79,73 @@ class Mesh():
         """Reads in domain.dat files and creates arrays of cell edge 
         and cell center values. Also determines dimensionality of
         output.
+
+        Creates 1D arrays of edges and centers in default code output.
+        Shapes:
+          xedges = (nx+1,)
+          yedges = (ny+1,)
+          zedges = (nz+1,)
+          xcenters = (nx,)
+          ycenters = (ny,)
+          zcenters = (nz,)
+        Note: nz = 1 if ndim == 2
+
+        Also creates grids of edges and centers in output coordinates
+        and converts to cartesian coordinates.
+
+        Default
+          edges = dict; contains 'x','y','z'
+          centers = dict; contains 'x','y','z'
+        where:
+          if coords == cylindrical:
+            "x" = azimuth
+            "y" = radius
+            "z" = z
+          if coords == spherical:
+            "x" = azimuth
+            "y" = radius
+            "z" = polar
+        shapes:
+          edges['x'] = (nz+1,ny+1,nx+1) <- gives lower "x" edge of cell 
+                         i,j,k, where "x" is in default code output
+                         (usually "x" is azimuth for cyl or spherical)
+          centers['x'] = (nz,ny,nx) <- gives "x" value at center of cell
+
+        Cartesian
+          cartedges = dict; contains 'x','y','z'
+          cartcenters = dict; contains 'x','y','z'
+        where:
+          "x","y", and "z" are cartesian coordinates centered at star
+        shapes:
+          cartedges['x'] = (nz+1,ny+1,nx+1) <- gives lower x edge of cell
+          cartcenters['x'] = (nz,nx,ny) <- gives center x value of cell
+    
         """
+        self._readin_edges(ghostcells=ghostcells)
+
+        self._get_centers()
+
+        # create arrays
+        self.edges = {}
+        self.edges['z'],self.edges['y'],self.edges['x'] = np.meshgrid(
+            self.zedges,self.yedges,self.xedges,indexing='ij'
+        )
+
+        self.centers = {}
+        self.centers['z'],self.centers['y'],self.centers['x'] = np.meshgrid(
+            self.zcenters,self.ycenters,self.xcenters,indexing='ij'
+        )
+
+        # get cartesian coordinates
+        self.cartcenters = {}
+        self.cartedges = {}
+        if self.variables['COORDINATES'] == 'spherical':
+            self._get_cartgrid_from_sphere()
+        elif self.variables['COORDINATES'] == 'cylindrical':
+            self._get_cartgrid_from_cyl()
+
+    def _readin_edges(self,ghostcells=True):
+        """Helper function to readin domain[x,y,z].dat files"""
         # default number of ghost cells out, check fargo distribution
         NGHOST = 3
 
@@ -123,10 +189,8 @@ class Mesh():
         self.nz = len(self.zedges)-1
         self.zedges = np.array(self.zedges)
 
-        self.get_centers()
-
-    def get_centers(self):
-        """Helper function to get cell center values"""
+    def _get_centers(self):
+        """Helper function to get centers of arrays"""
         self.xcenters = list([(self.xedges[i]
                                 + self.xedges[i+1])/2 for i in range(self.nx)])
         self.ycenters = list([(self.yedges[i]
@@ -136,6 +200,46 @@ class Mesh():
         self.xcenters = np.array(self.xcenters)
         self.ycenters = np.array(self.ycenters)
         self.zcenters = np.array(self.zcenters)
+
+    def _sphere2cart(self,az,r,pol):
+        """convert spherical to cartesian"""
+        x = r*np.cos(az)*np.sin(pol)
+        y = r*np.sin(az)*np.sin(pol)
+        z = r*np.cos(pol)
+        return x,y,z
+
+    def _cyl2cart(self,az,r,z):
+        """convert cylindrical to cartesian"""
+        x = r*np.cos(az)
+        y = r*np.sin(az)
+        return x,y,z
+
+    def _get_cartgrid_from_sphere(self):
+        """Helper function to convert spherical grid to cartesian grid"""
+        (self.cartedges['x'],
+         self.cartedges['y'],
+         self.cartedges['z']) = self._sphere2cart(self.edges['x'],
+                                                  self.edges['y'],
+                                                  self.edges['z'])
+        (self.cartcenters['x'],
+         self.cartcenters['y'],
+         self.cartcenters['z']) = self._sphere2cart(self.centers['x'],
+                                                    self.centers['y'],
+                                                    self.centers['z'])
+
+    def _get_cartgrid_from_cyl(self):
+        """Helper function to convert cylindrical grid to cartesian grid"""
+        (self.cartedges['x'],
+         self.cartedges['y'],
+         self.cartedges['z']) = self._cyl2cart(self.edges['x'],
+                                               self.edges['y'],
+                                               self.edges['z'])
+        (self.cartcenters['x'],
+         self.cartcenters['y'],
+         self.cartcenters['z']) = self._cyl2cart(self.centers['x'],
+                                                 self.centers['y'],
+                                                 self.centers['z'])
+        
 
     def read_state(self,state,n=-1):
         """readin the grid data for output 'state' at output number n. 
