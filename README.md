@@ -10,6 +10,8 @@
 
 [x] Change coordinates to be cartesian
 
+[] Check cartesian velocity calculation. Edges vs centers?
+
 [] change particle to readin from mesh
 
 [] incorporate planet into mesh? as own class?

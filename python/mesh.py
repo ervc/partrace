@@ -49,7 +49,7 @@ class Mesh():
             header = False
             section = ''
             for line in f:
-                if line[0:3] == "===":
+                if line.startswith("==="):
                     header = not header
                     continue
                 if header:
@@ -230,6 +230,22 @@ class Mesh():
         az = np.arctan2(y,x)
         return az,r,z
 
+    def _vel_sphere2cart(self,az,r,pol,azdot,rdot,poldot):
+        xdot = (np.cos(az)*np.sin(pol)*rdot 
+                - r*np.sin(az)*np.sin(pol)*azdot
+                + r*np.cos(az)*np.cos(pol)*poldot)
+        ydot = (np.sin(az)*np.sin(pol)*rdot
+                + r*np.cos(az)*np.sin(pol)*azdot
+                + r*np.sin(az)*np.cos(pol)*poldot)
+        zdot = np.cos(pol)*rdot - r*np.sin(pol)*poldot
+        return xdot,ydot,zdot
+
+    def _vel_cyl2cart(self,az,r,z,azdot,rdot,zdot):
+        xdot = np.cos(az)*rdot - r*np.sin(az)*azdot
+        ydot = np.sin(az)*rdot + r*np.cos(az)*azdot
+        zdot = zdot
+        return xdot,ydot,zdot
+
     def _get_cartgrid_from_sphere(self):
         """Helper function to convert spherical grid to cartesian grid"""
         (self.cartedges['x'],
@@ -255,6 +271,27 @@ class Mesh():
          self.cartcenters['z']) = self._cyl2cart(self.centers['x'],
                                                  self.centers['y'],
                                                  self.centers['z'])
+
+    def get_cart_vel(self):
+        """returns 3D arrays of cartesian velocities. Note: velocities
+        are stored at cell edges, but we use the centers here...
+        Need to check this!
+        """
+        if self.ndim == 2:
+            self.state['gasvz'] = np.zeros_like(self.state['gasvx'])
+        if self.variables['COORDINATES'] == 'spherical':
+            xdot,ydot,zdot = self._vel_sphere2cart(
+                self.centers['x'],self.centers['y'],self,centers['z'],
+                self.state['gasvx'],self.state['gasvy'],self.state['gasvz'])
+        elif self.variables['COORDINATES'] == 'cylindrical':
+            xdot,ydot,zdot = self._vel_cyl2cart(
+                self.centers['x'],self.centers['y'],self,centers['z'],
+                self.state['gasvx'],self.state['gasvy'],self.state['gasvz'])
+        else:
+            raise Exception("Coordinates cannot be determined")
+            return None
+        return xdot,ydot,zdot
+
         
 
     def read_state(self,state,n=-1):
@@ -359,7 +396,9 @@ class Mesh():
                         + f'  zlims = {self.zedges[0], self.zedges[-1]}')
 
         if flag > 0:
-            raise Exception(errmessage)
+            # raise Exception(errmessage)
+            # print(errmessage)
+            return None
 
         icell = 0
         for i in range(self.nx):
@@ -390,7 +429,31 @@ class Mesh():
         else:
             raise Exception("Coordinate system is uncertain,"
                 + " cannot convert to default coordinates.")
-            return -1,-1,-1
+            return None
+
+    def get_rho_from_cart(self,x,y,z):
+        '''get density at a given cartesian location from the disk'''
+        cellind = self.get_cell_from_cart(x,y,z)
+        if cellind is None:
+            # try reflecting over z=0 at midplane
+            cellind = self.get_cell_from_cart(x,y,-z)
+            if cellind is None:
+                # if still nothing then return NaN
+                return np.nan
+        icell,jcell,kcell = cellind
+        return self.state['gasdens'][kcell,jcell,icell]
+
+    def get_state_from_cart(self,state,x,y,z):
+        """Get the value of 'state' at a given cartesian coordinate"""
+        cellind = self.get_cell_from_cart(x,y,z)
+        if cellind is None:
+            # try reflecting over z=0 at midplane
+            cellind = self.get_cell_from_cart(x,y,-z)
+            if cellind is None:
+                # if still nothing then return NaN
+                return np.nan
+        icell,jcell,kcell = cellind
+        return self.state[state][kcell,jcell,icell]
 
 
 

@@ -22,27 +22,31 @@ def outline_cell(i,j,mesh,ax):
     rect = Rectangle((xlo,ylo),width,height,ec='k',fc=None,fill=False)
     ax.add_patch(rect)
 
-def main(fargodir):
-    mesh = Mesh(fargodir)
-
-    for state in ['gasdens','gasvx','gasvy']:
-        mesh.read_state(state,-1)
-
-    kthet = -1
-
-    fig,axs = plt.subplots(1,3,sharey=True)
-    auperyr = const.YR/const.AU
-    # imrho = mesh.plot_state('gasdens',ax=axs[0],yunits='au')
-    # imvx = mesh.plot_state('gasvx',log=False,ax=axs[1],yunits='au')
-    # imvy = mesh.plot_state('gasvy',log=False,ax=axs[2],yunits='au')
-
-
-    ### plotting
+def get_scale(mesh):
     lenscale = 1
     vscale = 1
     if mesh.variables['UNITS'] == 'CGS':
         lenscale = 1/const.AU
-        vscale = auperyr
+        vscale = const.YR/const.AU
+    return lenscale,vscale
+
+def get_norbit(mesh):
+    dt_out = float(mesh.variables['DT'])*float(mesh.variables['NINTERM'])
+    GM = float(mesh.variables['G'])*float(mesh.variables['MSTAR'])
+    R = float(mesh.variables['R0'])
+    R3 = R*R*R
+    torbit = const.TWOPI * np.sqrt(R3/GM)
+    norbit = mesh.n['gasdens']*dt_out/torbit
+    return norbit
+
+def plot_slice(mesh):
+    kthet = -1
+
+    fig,axs = plt.subplots(1,3,sharey=True)
+    
+
+    lenscale,vscale = get_scale(mesh)
+    ### plotting
     arr = np.log10(mesh.state['gasdens'][kthet])
     imrho = axs[0].pcolormesh(mesh.edges['x'][kthet],
         mesh.edges['y'][kthet]*lenscale,
@@ -72,12 +76,7 @@ def main(fargodir):
     cbvy = plt.colorbar(imvy,ax=axs[2],label='vy [au/yr]',location='top')
     axs[2].set(xlabel='azimuth [rad]')
 
-    dt_out = float(mesh.variables['DT'])*float(mesh.variables['NINTERM'])
-    GM = float(mesh.variables['G'])*float(mesh.variables['MSTAR'])
-    R = float(mesh.variables['R0'])
-    R3 = R*R*R
-    torbit = const.TWOPI * np.sqrt(R3/GM)
-    norbit = mesh.n[state]*dt_out/torbit
+    norbit = get_norbit(mesh)
     title = f'Norbit = {norbit:g}'
     if mesh.ndim == 3:
         title+=f'\ntheta = {mesh.zcenters[kthet]:.3f}'
@@ -85,7 +84,10 @@ def main(fargodir):
 
     plt.show()
 
+def plot_cart_slice(mesh):
+    kthet = -1
 
+    lenscale,vscale = get_scale(mesh)
     ### cartesian
     print(mesh.edges['x'].shape)
     print(mesh.cartedges['x'].shape)
@@ -126,21 +128,80 @@ def main(fargodir):
     for ax in axs:
         ax.set(aspect='equal')
 
+    norbit = get_norbit(mesh)
+    title = f'Norbit = {norbit:g}'
+    if mesh.ndim == 3:
+        title+=f'\ntheta = {mesh.zcenters[kthet]:.3f}'
     fig.suptitle(title)
 
     plt.show()
 
+def plot_side(mesh):
+    zge = mesh.cartedges['z']
+    zgc = mesh.cartedges['z']
+    rge = mesh.edges['y']
+    rgc = mesh.edges['y']
+    azge = mesh.edges['x']
+    azgc = mesh.centers['x']
 
-    x,y,z = 5*const.AU,5*const.AU,0
-    i,j,k = mesh.get_cell_from_cart(x,y,z)
-    print(f'x,y,z = {x,y,z}')
-    print('closest cell center:')
-    print(mesh.cartcenters['x'][k,j,i],
-          mesh.cartcenters['y'][k,j,i],
-          mesh.cartcenters['z'][k,j,i])
+    s = np.s_[:,:,0] # get az slice
+    def avg(arr): return np.mean(arr,axis=-1) # function to avg along azimuth
+
+    fig,axs = plt.subplots(1,2)
+    arr = np.log10(mesh.state['gasdens'])
+
+    ax = axs[0]
+    im = ax.pcolormesh(rge[s],zge[s],arr[s])
+    cb = plt.colorbar(im,ax=ax,label='rho')
+
+    ax = axs[1]
+    im = ax.pcolormesh(avg(rge),avg(zge),avg(arr))
+    cb = plt.colorbar(im,ax=ax,label='avg rho')
+
+    plt.show()
+
+def plot_generic(mesh):
+    nx = 100
+    ny = 100
+    x = np.linspace(-5,5,nx)*const.AU
+    y = np.linspace(-5,5,ny)*const.AU
+    z = 0
+
+    xx,yy = np.meshgrid(x,y)
+
+    arr = np.ones_like(xx)
+    for j in range(ny):
+        for i in range(nx):
+            arr[j,i] = mesh.get_state_from_cart('gasdens',x[i],y[j],z)
+
+    fig,ax = plt.subplots()
+    ax.pcolormesh(xx,yy,np.log10(arr))
+    plt.show()
+
+
+
+def main(fargodir):
+    mesh = Mesh(fargodir)
+
+    for state in ['gasdens','gasvx','gasvy']:
+        mesh.read_state(state,-1)
+
+    # plot_slice(mesh)
+    # plot_cart_slice(mesh)
+    # plot_side(mesh)
+    plot_generic(mesh)
+
+
+    # x,y,z = 1,1,0
+    # i,j,k = mesh.get_cell_from_cart(x,y,z)
+    # print(f'x,y,z = {x,y,z}')
+    # print('closest cell center:')
+    # print(mesh.cartcenters['x'][k,j,i],
+    #       mesh.cartcenters['y'][k,j,i],
+    #       mesh.cartcenters['z'][k,j,i])
 
 if __name__ == '__main__':
-    main(FARGODIR)
+    main(FARGOOUT)
 
     
 
