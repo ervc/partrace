@@ -183,13 +183,15 @@ def plot_generic(mesh):
 def main(fargodir):
     mesh = Mesh(fargodir)
 
-    for state in ['gasdens','gasvx','gasvy']:
-        mesh.read_state(state,-1)
+    mesh.get_cartvel()
+
+    # for state in ['gasdens','gasvx','gasvy']:
+        # mesh.read_state(state,-1)
 
     # plot_slice(mesh)
     # plot_cart_slice(mesh)
     # plot_side(mesh)
-    plot_generic(mesh)
+    # plot_generic(mesh)
 
 
     # x,y,z = 1,1,0

@@ -6,7 +6,7 @@ class Mesh():
     """Fargo domain mesh. Contains the domain, density, 
     and velocity mesh.
     """
-    def __init__(self, fargodir, quiet=False):
+    def __init__(self, fargodir, states=None, n=-1, quiet=False):
         self.fargodir = fargodir
         self.ndim = 3
         self.read_variables()
@@ -15,6 +15,24 @@ class Mesh():
             self.confirm()
         self.state = {}
         self.n = {}
+        if states is None:
+            if not quiet:
+                print('Initialized, self.state and self.n are empty,'
+                    + ' states can be read in using read_state()\n')
+        else:
+            if states == 'all':
+                states = ['gasdens','gasvx','gasvy']
+                if self.ndim == 3:
+                    states.append('gasvz')
+            for state in states:
+                self.read_state(state,n)
+            if not quiet:
+                outstr = ('Initialized, self.states contains:\n'
+                    + f'{list(self.state.keys())}\n'
+                    + 'read in from outputs:\n')
+                for state in self.n.keys():
+                    outstr += f'n = {self.n[state]} for {state}\n'
+                print(outstr)
 
     def confirm(self):
         conf_msg = ''
@@ -272,31 +290,60 @@ class Mesh():
                                                  self.centers['y'],
                                                  self.centers['z'])
 
-    def get_cart_vel(self):
+    def get_cartvel(self):
         """returns 3D arrays of cartesian velocities. Note: velocities
         are stored at cell edges, but we use the centers here...
         Need to check this!
         """
+        # determine which n we're looking at if already defined
+        n = -1
+        if 'gasdens' in self.n:
+            n = self.n['gasdens']
+        elif 'gasvx' in self.n:
+            n = self.n['gasvx']
+        elif 'gasvy' in self.n:
+            n = self.n['gasvy']
+        elif 'gasvz' in self.n:
+            n = self.n['gasvz']
+        else:
+            print('no states have been read in, finding last state.')
+
+        # readin velocities if not already done
+        if 'gasvx' not in self.state:
+            self.read_state('gasvx',n)
+        if 'gasvy' not in self.state:
+            self.read_state('gasvy',n)
         if self.ndim == 2:
             self.state['gasvz'] = np.zeros_like(self.state['gasvx'])
+        elif 'gasvz' not in state:
+            self.read_state('gasvz',n)
+        if n == -1:
+            print(f'using output n = {self.n["gasvx"]}')
+
         if self.variables['COORDINATES'] == 'spherical':
             xdot,ydot,zdot = self._vel_sphere2cart(
-                self.centers['x'],self.centers['y'],self,centers['z'],
+                self.centers['x'],self.centers['y'],self.centers['z'],
                 self.state['gasvx'],self.state['gasvy'],self.state['gasvz'])
         elif self.variables['COORDINATES'] == 'cylindrical':
             xdot,ydot,zdot = self._vel_cyl2cart(
-                self.centers['x'],self.centers['y'],self,centers['z'],
+                self.centers['x'],self.centers['y'],self.centers['z'],
                 self.state['gasvx'],self.state['gasvy'],self.state['gasvz'])
         else:
             raise Exception("Coordinates cannot be determined")
-            return None
-        return xdot,ydot,zdot
+        
+        self.cartvel = {}
+        self.cartvel['x'] = xdot
+        self.cartvel['y'] = ydot
+        self.cartvel['z'] = zdot
 
         
 
     def read_state(self,state,n=-1):
         """readin the grid data for output 'state' at output number n. 
-        Default n=-1 gives last ouptut
+        Default n=-1 gives last ouptut.
+
+        This can be called by the user or called automatically in init()
+        by specifying the 'states' keyword.
         """
         MAXN = 1000
 
