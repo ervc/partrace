@@ -131,4 +131,13 @@ if __name__ == '__main__':
     plt.show()
 
 
+    x,y,z = 5*const.AU,5*const.AU,0
+    i,j,k = mesh.get_cell_from_cart(x,y,z)
+    print(f'x,y,z = {x,y,z}')
+    print('closest cell center:')
+    print(mesh.cartcenters['x'][k,j,i],
+          mesh.cartcenters['y'][k,j,i],
+          mesh.cartcenters['z'][k,j,i])
+
+
         

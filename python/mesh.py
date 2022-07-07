@@ -54,10 +54,10 @@ class Mesh():
                     continue
                 if header:
                     section = line.strip()
-                if section == 'COMPILATION OPTION SECTION:' and not header:
+                elif section == 'COMPILATION OPTION SECTION:':
                     if line[:2] == '-D':
                         flags = line.split()
-                if section == 'PREPROCESSOR MACROS SECTION:' and not header:
+                elif section == 'PREPROCESSOR MACROS SECTION:':
                     if len(line.split()) > 1:
                         quantity = line.split()[0]
                         val = line.split()[-1]
@@ -119,6 +119,11 @@ class Mesh():
         shapes:
           cartedges['x'] = (nz+1,ny+1,nx+1) <- gives lower x edge of cell
           cartcenters['x'] = (nz,nx,ny) <- gives center x value of cell
+
+        IMPORTANT: x[k,j,i] is "next to" x[k,j,i+1] in the azimuth 
+        direction, so dx = x[k,j,i+1]-x[k,j,i] may be positive or 
+        negative, and depends on the cell. Cell i,j,k is still indexed
+        by the original coordinate system, either cyl or spherical.
     
         """
         self._readin_edges(ghostcells=ghostcells)
@@ -208,11 +213,22 @@ class Mesh():
         z = r*np.cos(pol)
         return x,y,z
 
+    def _cart2sphere(self,x,y,z):
+        r = np.sqrt(x*x + y*y + z*z)
+        az = np.arctan2(y,x)
+        pol = np.arccos(z/r)
+        return az,r,pol
+
     def _cyl2cart(self,az,r,z):
         """convert cylindrical to cartesian"""
         x = r*np.cos(az)
         y = r*np.sin(az)
         return x,y,z
+
+    def _cart2cyl(self,x,y,z):
+        r = np.sqrt(x*x + y*y)
+        az = np.arctan2(y,x)
+        return az,r,z
 
     def _get_cartgrid_from_sphere(self):
         """Helper function to convert spherical grid to cartesian grid"""
@@ -355,15 +371,26 @@ class Mesh():
             jcell = j
             if self.yedges[j+1] >= y:
                 break
-        if self.ndim==2:
-            return icell,jcell
-
         kcell = 0
         for k in range(self.nz):
             kcell = k
             if self.zedges[k+1] >= z:
                 break
+
         return icell,jcell,kcell
+
+
+    def get_cell_from_cart(self,x,y,z):
+        if self.variables['COORDINATES'] == 'spherical':
+            az,r,pol = self._cart2sphere(x,y,z)
+            return self.get_cell_from_pol(az,r,pol)
+        elif self.variables['COORDINATES'] == 'cylindrical':
+            az,r,z = self._cart2cyl(x,y,z)
+            return self.get_cell_from_pol(az,r,z)
+        else:
+            raise Exception("Coordinate system is uncertain,"
+                + " cannot convert to default coordinates.")
+            return -1,-1,-1
 
 
 

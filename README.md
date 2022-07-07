@@ -6,9 +6,9 @@
 
 ## To Do:
 
-[] edges and centers should be in array
+[x] edges and centers should be in array
 
-[] Change coordinates to be cartesian
+[x] Change coordinates to be cartesian
 
 [] change particle to readin from mesh
 
