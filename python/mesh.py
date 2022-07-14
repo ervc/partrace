@@ -6,7 +6,7 @@ class Mesh():
     """Fargo domain mesh. Contains the domain, density, 
     and velocity mesh.
     """
-    def __init__(self, fargodir, states=None, n=-1, quiet=False):
+    def __init__(self, fargodir, states='all', n=-1, quiet=False):
         self.fargodir = fargodir
         self.ndim = 3
         self.read_variables()
@@ -14,6 +14,7 @@ class Mesh():
         if not quiet:
             self.confirm()
         self.state = {}
+        self.interpolators = {}
         self.n = {}
         if states is None:
             if not quiet:
@@ -26,6 +27,8 @@ class Mesh():
                     states.append('gasvz')
             for state in states:
                 self.read_state(state,n)
+                interp = self.create_interpolator(state)
+                self.interpolators[state] = interp
             if not quiet:
                 outstr = ('Initialized, self.states contains:\n'
                     + f'{list(self.state.keys())}\n'
@@ -33,6 +36,7 @@ class Mesh():
                 for state in self.n.keys():
                     outstr += f'n = {self.n[state]} for {state}\n'
                 print(outstr)
+
 
     def confirm(self):
         conf_msg = ''
@@ -52,7 +56,7 @@ class Mesh():
 
         print(conf_msg)
 
-    def read_variables(self):
+    def read_variables(self,n=0):
         """Reads variables.par file and cretes dict of variables. Also
         read in from summary0.dat to get scaling laws"""
         self.variables={}
@@ -63,7 +67,7 @@ class Mesh():
 
         units = 'code'
         flags = []
-        with open(self.fargodir+'/summary0.dat','r') as f:
+        with open(self.fargodir+f'/summary{n:d}.dat','r') as f:
             header = False
             section = ''
             for line in f:
@@ -87,7 +91,7 @@ class Mesh():
             elif '-DMKS' in flags:
                 units = 'MKS'
             else:
-                raise Exception('Unable to determine units from summary0.dat'
+                raise Exception(f'Unable to determine units from summary{n}.dat'
                     +' see flags\n',flags)
         if 'UNITS' not in self.variables:
             self.variables['UNITS'] = units
@@ -318,7 +322,7 @@ class Mesh():
             self.read_state('gasvy',n)
         if self.ndim == 2:
             self.state['gasvz'] = np.zeros_like(self.state['gasvx'])
-        elif 'gasvz' not in state:
+        elif 'gasvz' not in self.state:
             self.read_state('gasvz',n)
         if n == -1:
             print(f'using output n = {self.n["gasvx"]}')
@@ -468,6 +472,18 @@ class Mesh():
 
         return icell,jcell,kcell
 
+    def get_cell_from_cyl(self,az,r,z):
+        if self.variables['COORDINATES'] == 'cylindrical':
+            return self.get_cell_from_pol(az,r,z)
+        elif self.variables['COORDINATES'] == 'spherical':
+            s = np.sqrt(r*r + z*z) # spherical radius
+            pol = np.arccos(z/s)
+            return self.get_cell_from_pol(az,s,pol)
+        else:
+            raise Exception("Coordinate system is uncertain,"
+                + " cannot convert to default coordinates.")
+            return None
+
 
     def get_cell_from_cart(self,x,y,z):
         if self.variables['COORDINATES'] == 'spherical':
@@ -493,18 +509,97 @@ class Mesh():
         icell,jcell,kcell = cellind
         return self.state['gasdens'][kcell,jcell,icell]
 
-    def get_state_from_cart(self,state,x,y,z):
-        """Get the value of 'state' at a given cartesian coordinate"""
-        cellind = self.get_cell_from_cart(x,y,z)
-        if cellind is None:
-            # try reflecting over z=0 at midplane
-            cellind = self.get_cell_from_cart(x,y,-z)
-            if cellind is None:
-                # if still nothing then return NaN
-                return np.nan
-        icell,jcell,kcell = cellind
-        return self.state[state][kcell,jcell,icell]
+    def get_state_from_cart(self,state,x,y,z=0):
+        """Get the value of 'state' at a given cartesian coordinate
+        """
+        
 
+        # # check if we're outside the grid to save time on some cells
+        # cellind = self.get_cell_from_cart(x,y,z)
+        # if cellind is None:
+        #     # try reflecting over z=0 at midplane
+        #     cellind = self.get_cell_from_cart(x,y,-z)
+        #     if cellind is None:
+        #         # if still nothing then return NaN
+        #         return np.nan
+
+        # # cellindex
+        # icell,jcell,kcell = cellind
+
+        # setup interpolator
+        interp = self.interpolators[state]
+
+        # do the interpolation
+        if self.variables['COORDINATES'] == 'cylindrical':
+            az,r,z = self._cart2cyl(x,y,z)
+            if self.ndim == 2:
+                return interp(np.stack([r,az],axis=-1))
+            else:
+                return interp(np.stack([z,r,az],axis=-1))
+        elif self.variables['COORDINATES'] == 'spherical':
+            az,r,pol = self._cart2sphere(x,y,z)
+            if self.ndim == 2:
+                return interp(np.stack([r,az],axis=-1))
+            else:
+                print(pol.min(),pol.max())
+                print(np.pi/2)
+                return interp(np.stack([pol,r,az],axis=-1))
+
+        else:
+            raise Exception('uncertain on coordinates,'
+                  +' cannot interpolate')
+            return None
+
+    def create_interpolator(self,state):
+        """Creates the interpolator function using scipy interpolate
+        If the dimension of the mesh is 2d then interpolator will be 2d,
+        this avoids issues with interpolating from a single z component
+        """
+        from scipy.interpolate import RegularGridInterpolator
+
+        Y = self.ycenters
+
+        # Z = self.zcenters
+
+        # reflective z boundary
+        # z  = pi/2 - delta     delta = pi/2 - z
+        # z' = pi/2 + delta
+        # z' = (pi/2 - delta) + 2*delta
+        # z' = z + 2*(pi/2 - z)
+        #    = z + pi - 2*z
+        #    = pi-z
+
+        lenz = len(self.zcenters)
+        Z = np.zeros(2*lenz)
+        Z[0:lenz] = self.zcenters
+        Z[-1:lenz-1:-1] = PI - self.zcenters
+        
+        # periodic boundary conditions for x axis
+        X = np.zeros(len(self.xcenters)+2)
+
+        # create the array and fill in extra X columns
+        arr = np.zeros((len(Z),len(Y),len(X)))
+        for i in range(self.nx):
+            X[i+1] = self.xcenters[i]
+            arr[0:lenz,:,i+1] = self.state[state][:,:,i]
+        X[0]  = self.xcenters[-1] - TWOPI
+        X[-1] = self.xcenters[0]  + TWOPI
+        arr[0:lenz,:,0]  = self.state[state][:,:,-1]
+        arr[0:lenz,:,-1] = self.state[state][:,:,0]
+        
+        # flip and repeat over the z axis
+        arr[-1:lenz-1:-1,:,:] = arr[0:lenz,:,:]
+
+        # setup interpolator
+        if self.ndim == 3:
+            print(f'zlim = {Z.min(),Z.max()}')
+            interp = RegularGridInterpolator(
+                (Z,Y,X),arr,method='linear',bounds_error=False)
+        else:
+            interp = RegularGridInterpolator(
+                (Y,X),arr[0],method='linear',bounds_error=False)
+
+        return interp
 
 
 

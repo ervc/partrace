@@ -1,0 +1,33 @@
+# xt = np.linspace(0,1,10)
+# yt = np.linspace(0,1,8)
+
+xt = np.random.random(10)
+yt = np.random.random(10)
+xt = np.sort(xt)
+yt = np.sort(yt)
+
+xx,yy = np.meshgrid(xt,yt)
+
+def f(x,y):
+    return np.sqrt(x**2 + y**2)
+
+data = f(xx,yy)
+
+fig,ax = plt.subplots()
+sc = ax.scatter(xx,yy,c=data,s=20)
+cb = plt.colorbar(sc,ax=ax)
+
+
+
+
+from scipy.interpolate import RegularGridInterpolator
+
+st = default_timer()
+interp = RegularGridInterpolator((yt,xt),data)
+end = default_timer()
+print(f"time to create interpolator = {end-st}")
+
+st = default_timer()
+f55 = interp([0.5,0.5])
+end = default_timer()
+print(f"time to call interpolator = {end-st}")

@@ -10,7 +10,7 @@
 
 [x] Change coordinates to be cartesian
 
-[] Check cartesian velocity calculation. Edges vs centers?
+[] Interpolation of data outputs for cartesian grid
 
 [] change particle to readin from mesh
 

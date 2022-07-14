@@ -1,26 +1,16 @@
-import python.constants as const
-from python.mesh import Mesh
 import matplotlib.pyplot as plt
 import numpy as np
 
-FARGOOUT = './exampleout/fargo_rescale'
+import python as pt
+import python.constants as const
+
+FARGOOUT = './exampleout/fargo3d'
 
 def get_minmaxabs(arr):
     maxabs = np.max(np.abs(arr))
     return -maxabs,maxabs
 def get_minmax(arr):
     return np.min(arr), np.max(arr)
-
-def outline_cell(i,j,mesh,ax):
-    from matplotlib.patches import Rectangle
-    xlo = mesh.xedges[i]
-    xhi = mesh.xedges[i+1]
-    ylo = mesh.yedges[j]
-    yhi = mesh.yedges[j+1]
-    width = xhi-xlo
-    height = yhi-ylo
-    rect = Rectangle((xlo,ylo),width,height,ec='k',fc=None,fill=False)
-    ax.add_patch(rect)
 
 def get_scale(mesh):
     lenscale = 1
@@ -138,69 +128,123 @@ def plot_cart_slice(mesh):
 
 def plot_side(mesh):
     zge = mesh.cartedges['z']
-    zgc = mesh.cartedges['z']
+    zgc = mesh.cartcenters['z']
     rge = mesh.edges['y']
-    rgc = mesh.edges['y']
+    rgc = mesh.centers['y']
     azge = mesh.edges['x']
     azgc = mesh.centers['x']
 
     s = np.s_[:,:,0] # get az slice
     def avg(arr): return np.mean(arr,axis=-1) # function to avg along azimuth
 
-    fig,axs = plt.subplots(1,2)
+    # edges
+    fig,axs = plt.subplots(2,2)
     arr = np.log10(mesh.state['gasdens'])
 
-    ax = axs[0]
+    ax = axs[0,0]
     im = ax.pcolormesh(rge[s],zge[s],arr[s])
     cb = plt.colorbar(im,ax=ax,label='rho')
 
-    ax = axs[1]
+    ax = axs[1,0]
     im = ax.pcolormesh(avg(rge),avg(zge),avg(arr))
+    cb = plt.colorbar(im,ax=ax,label='avg rho')
+
+    # centers
+    arr = np.log10(mesh.state['gasdens'])
+
+    ax = axs[0,1]
+    im = ax.contourf(rgc[s],zgc[s],arr[s])
+    cb = plt.colorbar(im,ax=ax,label='rho')
+
+    ax = axs[1,1]
+    im = ax.contourf(avg(rgc),avg(zgc),avg(arr))
     cb = plt.colorbar(im,ax=ax,label='avg rho')
 
     plt.show()
 
-def plot_generic(mesh):
-    nx = 100
-    ny = 100
-    x = np.linspace(-5,5,nx)*const.AU
-    y = np.linspace(-5,5,ny)*const.AU
-    z = 0
-
-    xx,yy = np.meshgrid(x,y)
-
-    arr = np.ones_like(xx)
-    for j in range(ny):
-        for i in range(nx):
-            arr[j,i] = mesh.get_state_from_cart('gasdens',x[i],y[j],z)
-
-    fig,ax = plt.subplots()
-    ax.pcolormesh(xx,yy,np.log10(arr))
-    plt.show()
-
+def find_nearest(array, value):
+    array = np.asarray(array)
+    idx = (np.abs(array - value)).argmin()
+    return idx,array[idx]
 
 
 def main(fargodir):
-    mesh = Mesh(fargodir)
+    mesh = pt.create_mesh(fargodir)
 
-    mesh.get_cartvel()
+    k = -1
 
-    # for state in ['gasdens','gasvx','gasvy']:
-        # mesh.read_state(state,-1)
+    '''use mesh to find the density, vaz, vr, or vz at any cartesian
+    location
+    '''
 
-    # plot_slice(mesh)
-    # plot_cart_slice(mesh)
-    # plot_side(mesh)
-    # plot_generic(mesh)
+    lenscale,vscale = get_scale(mesh)
+
+    # set up cartesian grid at z=0 (midplane)
+    # nx = 250
+    # ny = 250
+    # nz = 1
+    # X = np.linspace(-10,10,nx)*lenscale
+    # Y = np.linspace(-10,10,ny)*lenscale
+    # Z = np.array([0.])*lenscale
+    nx = 1
+    ny = 250
+    nz = 50
+    X = np.array([0.])*lenscale
+    Y = np.linspace(-2,2,ny)*lenscale
+    Z = np.linspace(-0.2,0.2,nz)*lenscale
+
+    zz,yy,xx = np.meshgrid(Z,Y,X,indexing='ij')
+
+    fig,ax = plt.subplots()
+    rho = mesh.get_state_from_cart('gasdens',xx,yy,zz)
+    print(rho.shape)
+    im = ax.pcolormesh(yy[:,:,0],zz[:,:,0],np.log10(rho[:,:,0]))
+    ax.set(title=f'Norbit = {get_norbit(mesh):.0f}\nx=0',
+        ylabel='z-coordinate',xlabel='y-coordinate')
+    # ax.set_aspect('equal')
+
+    # the outline
+    ax.plot(mesh.ycenters,mesh.ycenters*np.cos(mesh.zcenters[0]),ls='-',c='k')
+    ax.plot(-mesh.ycenters,mesh.ycenters*np.cos(-mesh.zcenters[0]),ls='-',c='k')
+    ax.plot(mesh.ycenters,mesh.ycenters*np.cos(mesh.zcenters[-1]),ls='-',c='k')
+    ax.plot(-mesh.ycenters,mesh.ycenters*np.cos(-mesh.zcenters[-1]),ls='-',c='k')
 
 
-    # x,y,z = 1,1,0
-    # i,j,k = mesh.get_cell_from_cart(x,y,z)
-    # print(f'x,y,z = {x,y,z}')
-    # print('closest cell center:')
-    # print(mesh.cartcenters['x'][k,j,i],
-    #       mesh.cartcenters['y'][k,j,i],
-    #       mesh.cartcenters['z'][k,j,i])
+    for k in range(mesh.nz+1):
+        ax.plot(mesh.yedges,mesh.yedges*np.cos(mesh.zedges[k]),
+            c='k',ls='--',alpha=0.5)
+        ax.plot(-mesh.yedges,mesh.yedges*np.cos(-mesh.zedges[k]),
+            c='k',ls='--',alpha=0.5)
+
+    ax.set(ylim=(0,Z.max()))
+
+    plt.show()
+
+
+    i = 0
+
+    ytarget = 1.2
+    j,y = find_nearest(Y,ytarget)
+
+    fig,ax = plt.subplots()
+    ax.plot(np.log10(rho[:,j,i]),Z,ls='-',marker='o')
+    ax.set(title=f'rho(z, y={y:.2f}, x=0)',ylabel='z',xlabel='rho')
+
+    plt.show()
+
+    '''or mesh also contains the output data from fargo
+    in its original coordinates!
+    '''
+    # fig,ax = plt.subplots()
+    # ax.plot(mesh.ycenters,np.mean(mesh.state['gasdens'][k],axis=-1))
+    # for i in range(mesh.nx):
+    #     ax.plot(mesh.ycenters,mesh.state['gasdens'][k,:,i],alpha=0.5)
+    # ax.set(yscale='log')
+    # plt.show()
+
+
+    # the Mesh also has the fargo output variables compiled at runtime
+    print(f"{mesh.variables['COORDINATES'] = }")
 
 if __name__ == '__main__':
     main(FARGOOUT)
