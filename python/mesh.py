@@ -22,11 +22,12 @@ class Mesh():
                     + ' states can be read in using read_state()\n')
         else:
             if states == 'all':
-                states = ['gasdens','gasvx','gasvy']
-                if self.ndim == 3:
-                    states.append('gasvz')
+                states = ['gasdens','gasvx','gasvy','gasvz','gasenergy']
             for state in states:
-                self.read_state(state,n)
+                if state == 'gasvz' and self.ndim == 2:
+                    self.state['gasvz'] = np.zeros_like(self.state['gasvx'])
+                else:
+                    self.read_state(state,n)
                 interp = self.create_interpolator(state)
                 self.interpolators[state] = interp
             if not quiet:
@@ -91,8 +92,9 @@ class Mesh():
             elif '-DMKS' in flags:
                 units = 'MKS'
             else:
-                raise Exception(f'Unable to determine units from summary{n}.dat'
-                    +' see flags\n',flags)
+                raise Exception('Unable to determine units from'
+                    +f' summary{n}.dat, see flags\n',flags)
+        self.variables['FLAGS'] = flags
         if 'UNITS' not in self.variables:
             self.variables['UNITS'] = units
 
@@ -162,14 +164,6 @@ class Mesh():
         self.centers['z'],self.centers['y'],self.centers['x'] = np.meshgrid(
             self.zcenters,self.ycenters,self.xcenters,indexing='ij'
         )
-
-        # get cartesian coordinates
-        self.cartcenters = {}
-        self.cartedges = {}
-        if self.variables['COORDINATES'] == 'spherical':
-            self._get_cartgrid_from_sphere()
-        elif self.variables['COORDINATES'] == 'cylindrical':
-            self._get_cartgrid_from_cyl()
 
     def _readin_edges(self,ghostcells=True):
         """Helper function to readin domain[x,y,z].dat files"""
@@ -262,88 +256,13 @@ class Mesh():
         zdot = np.cos(pol)*rdot - r*np.sin(pol)*poldot
         return xdot,ydot,zdot
 
+
     def _vel_cyl2cart(self,az,r,z,azdot,rdot,zdot):
         xdot = np.cos(az)*rdot - r*np.sin(az)*azdot
         ydot = np.sin(az)*rdot + r*np.cos(az)*azdot
         zdot = zdot
         return xdot,ydot,zdot
 
-    def _get_cartgrid_from_sphere(self):
-        """Helper function to convert spherical grid to cartesian grid"""
-        (self.cartedges['x'],
-         self.cartedges['y'],
-         self.cartedges['z']) = self._sphere2cart(self.edges['x'],
-                                                  self.edges['y'],
-                                                  self.edges['z'])
-        (self.cartcenters['x'],
-         self.cartcenters['y'],
-         self.cartcenters['z']) = self._sphere2cart(self.centers['x'],
-                                                    self.centers['y'],
-                                                    self.centers['z'])
-
-    def _get_cartgrid_from_cyl(self):
-        """Helper function to convert cylindrical grid to cartesian grid"""
-        (self.cartedges['x'],
-         self.cartedges['y'],
-         self.cartedges['z']) = self._cyl2cart(self.edges['x'],
-                                               self.edges['y'],
-                                               self.edges['z'])
-        (self.cartcenters['x'],
-         self.cartcenters['y'],
-         self.cartcenters['z']) = self._cyl2cart(self.centers['x'],
-                                                 self.centers['y'],
-                                                 self.centers['z'])
-
-    def get_cartvel(self):
-        """returns 3D arrays of cartesian velocities. Note: velocities
-        are stored at cell edges, but we use the centers here...
-        Need to check this!
-
-        This must be called by the user to ensure that proper state
-        variables have been read in.
-        """
-        # determine which n we're looking at if already defined
-        n = -1
-        if 'gasdens' in self.n:
-            n = self.n['gasdens']
-        elif 'gasvx' in self.n:
-            n = self.n['gasvx']
-        elif 'gasvy' in self.n:
-            n = self.n['gasvy']
-        elif 'gasvz' in self.n:
-            n = self.n['gasvz']
-        else:
-            print('no states have been read in, finding last state.')
-
-        # readin velocities if not already done
-        if 'gasvx' not in self.state:
-            self.read_state('gasvx',n)
-        if 'gasvy' not in self.state:
-            self.read_state('gasvy',n)
-        if self.ndim == 2:
-            self.state['gasvz'] = np.zeros_like(self.state['gasvx'])
-        elif 'gasvz' not in self.state:
-            self.read_state('gasvz',n)
-        if n == -1:
-            print(f'using output n = {self.n["gasvx"]}')
-
-        if self.variables['COORDINATES'] == 'spherical':
-            xdot,ydot,zdot = self._vel_sphere2cart(
-                self.centers['x'],self.centers['y'],self.centers['z'],
-                self.state['gasvx'],self.state['gasvy'],self.state['gasvz'])
-        elif self.variables['COORDINATES'] == 'cylindrical':
-            xdot,ydot,zdot = self._vel_cyl2cart(
-                self.centers['x'],self.centers['y'],self.centers['z'],
-                self.state['gasvx'],self.state['gasvy'],self.state['gasvz'])
-        else:
-            raise Exception("Coordinates cannot be determined")
-        
-        self.cartvel = {}
-        self.cartvel['x'] = xdot
-        self.cartvel['y'] = ydot
-        self.cartvel['z'] = zdot
-
-        
 
     def read_state(self,state,n=-1):
         """readin the grid data for output 'state' at output number n. 
@@ -373,6 +292,7 @@ class Mesh():
         state_arr = np.fromfile(statefile).reshape(self.nz,self.ny,self.nx)
         self.state[state] = state_arr
         return state_arr
+
 
     def plot_state(self,state,ax=None,log=True,itheta=-1,yunits=None,
                     *args,**kwargs):
@@ -472,6 +392,7 @@ class Mesh():
 
         return icell,jcell,kcell
 
+
     def get_cell_from_cyl(self,az,r,z):
         if self.variables['COORDINATES'] == 'cylindrical':
             return self.get_cell_from_pol(az,r,z)
@@ -497,58 +418,45 @@ class Mesh():
                 + " cannot convert to default coordinates.")
             return None
 
-    def get_rho_from_cart(self,x,y,z):
-        '''get density at a given cartesian location from the disk'''
-        cellind = self.get_cell_from_cart(x,y,z)
-        if cellind is None:
-            # try reflecting over z=0 at midplane
-            cellind = self.get_cell_from_cart(x,y,-z)
-            if cellind is None:
-                # if still nothing then return NaN
-                return np.nan
-        icell,jcell,kcell = cellind
-        return self.state['gasdens'][kcell,jcell,icell]
 
     def get_state_from_cart(self,state,x,y,z=0):
         """Get the value of 'state' at a given cartesian coordinate
         """
-        
-
-        # # check if we're outside the grid to save time on some cells
-        # cellind = self.get_cell_from_cart(x,y,z)
-        # if cellind is None:
-        #     # try reflecting over z=0 at midplane
-        #     cellind = self.get_cell_from_cart(x,y,-z)
-        #     if cellind is None:
-        #         # if still nothing then return NaN
-        #         return np.nan
-
-        # # cellindex
-        # icell,jcell,kcell = cellind
 
         # setup interpolator
         interp = self.interpolators[state]
+
+        iterb = True
+        try:
+            iter(x)
+        except:
+            iterb = False
 
         # do the interpolation
         if self.variables['COORDINATES'] == 'cylindrical':
             az,r,z = self._cart2cyl(x,y,z)
             if self.ndim == 2:
-                return interp(np.stack([r,az],axis=-1))
+                if iterb:
+                    return interp(np.stack([r,az],axis=-1))
+                else:
+                    return interp(np.stack([r,az],axis=-1))[0]
             else:
-                return interp(np.stack([z,r,az],axis=-1))
+                if iterb:
+                    return interp(np.stack([z,r,az],axis=-1))
+                else:
+                    return interp(np.stack([z,r,az],axis=-1))[0]
         elif self.variables['COORDINATES'] == 'spherical':
             az,r,pol = self._cart2sphere(x,y,z)
             if self.ndim == 2:
                 return interp(np.stack([r,az],axis=-1))
             else:
-                print(pol.min(),pol.max())
-                print(np.pi/2)
                 return interp(np.stack([pol,r,az],axis=-1))
 
         else:
             raise Exception('uncertain on coordinates,'
                   +' cannot interpolate')
             return None
+
 
     def create_interpolator(self,state):
         """Creates the interpolator function using scipy interpolate
@@ -559,8 +467,6 @@ class Mesh():
 
         Y = self.ycenters
 
-        # Z = self.zcenters
-
         # reflective z boundary
         # z  = pi/2 - delta     delta = pi/2 - z
         # z' = pi/2 + delta
@@ -568,11 +474,10 @@ class Mesh():
         # z' = z + 2*(pi/2 - z)
         #    = z + pi - 2*z
         #    = pi-z
-
         lenz = len(self.zcenters)
         Z = np.zeros(2*lenz)
         Z[0:lenz] = self.zcenters
-        Z[-1:lenz-1:-1] = PI - self.zcenters
+        Z[lenz:] = PI - self.zcenters[::-1]
         
         # periodic boundary conditions for x axis
         X = np.zeros(len(self.xcenters)+2)
@@ -592,7 +497,6 @@ class Mesh():
 
         # setup interpolator
         if self.ndim == 3:
-            print(f'zlim = {Z.min(),Z.max()}')
             interp = RegularGridInterpolator(
                 (Z,Y,X),arr,method='linear',bounds_error=False)
         else:
@@ -600,6 +504,132 @@ class Mesh():
                 (Y,X),arr[0],method='linear',bounds_error=False)
 
         return interp
+
+    def get_scaleheight(self,x,y,z=0):
+        r = np.sqrt(x*x + y*y)
+        ar = float(self.variables['ASPECTRATIO'])
+        fi = float(self.variables['FLARINGINDEX'])
+        R0 = float(self.variables['R0'])
+        return r*ar*(r/R0)**fi
+
+
+    def get_Omega(self,x,y,z=0):
+        G = float(self.variables['G'])
+        Mstar = float(self.variables['MSTAR'])
+        GM = G*Mstar
+        r = np.sqrt(x**2 + y**2) # <--- question: +z**2 ?
+        r3 = r*r*r
+        return np.sqrt(GM/r3)
+
+    def get_soundspeed(self,x,y,z=0):
+        # H = self.get_scaleheight(x,y,z)
+        # Om = self.get_Omega(x,y,z)
+        # return H*Om
+        cs = self.get_state_from_cart('gasenergy',x,y,z)
+        return cs
+
+
+    def get_diffusivity(self,x,y,z=0):
+        """Determine the diffusivity at a given location
+        D = alpha*cs*H = alpha*H**2*omega = nu
+        """
+        az,r,z = self._cart2cyl(x,y,z)
+        if '-DVISCOSITY' in self.variables['FLAGS']:
+            return np.ones_like(x)*float(self.variables['NU'])
+        elif '-DALPHAVISCOSITY' in self.variables['FLAGS']:
+            H = self.get_scaleheight(x,y,z)
+            cs = self.get_soundspeed(x,y,z)
+            alpha = float(self.variables['ALPHA'])
+            return alpha*cs*H
+        else:
+            if not self.quiet:
+                print('Viscosity cannot be determined from variables.'
+                    +' Using D=0')
+            return 0
+
+    def get_rho(self,x,y,z=0):
+        """Determine the density at a given location"""
+        if self.ndim == 2:
+            # need to convert surface density to midplane density
+            sigma = self.get_state_from_cart('gasdens',x,y,z)
+            H = self.get_scaleheight(x,y,z)
+            rho = sigma/np.sqrt(2*PI)/H
+        else:
+            rho = self.get_state_from_cart('gasdens',x,y,z)
+        return rho
+
+    """
+    def get_gas_vel(self,x,y,z=0):
+        omega0 = float(self.variables['OMEGAFRAME'])
+        az,r,z = self._cart2cyl(x,y,z)
+        azdotprime = self.get_state_from_cart('gasvx',x,y,z)
+        azdot = azdotprime + r*omega0
+        rdot = self.get_state_from_cart('gasvy',x,y,z)
+        zdot = self.get_state_from_cart('gasvz',x,y,z)
+
+        xdot = np.cos(az)*rdot - r*np.sin(az)*azdot
+        ydot = np.sin(az)*rdot + r*np.cos(az)*azdot
+        xdotp = xdot - omega0*y
+        ydotp = ydot + omega0*x
+        zdotp = zdot
+
+        return xdotp,ydotp,zdotp
+    """
+
+    def get_gas_vel(self,x,y,z=0):
+        if self.variables['COORDINATES'] == 'cylindrical':
+            az,r,z = self._cart2cyl(x,y,z)
+            azdot = self.get_state_from_cart('gasvx',x,y,z)
+            rdot = self.get_state_from_cart('gasvy',x,y,z)
+            zdot = self.get_state_from_cart('gasvz',x,y,z)
+            xdot,ydot,zdot = self._vel_cyl2cart(az,r,z,azdot,rdot,zdot)
+            xdot = xdot/r
+            ydot = ydot/r
+        elif self.variables['COORDINATES'] == 'spherical':
+            az,r,pol = self._cart2sphere(x,y,z)
+            azdot = self.get_state_from_cart('gasvx',x,y,z)
+            rdot = self.get_state_from_cart('gasvy',x,y,z)
+            poldot = self.get_state_from_cart('gasvz',x,y,z)
+            xdot,ydot,zdot = self._vel_sphere2cart(az,r,pol,azdot,rdot,poldot)
+        else:
+            raise Exception('Coordinates cannot be determined!'
+                +' Cannot calculate gas velocity.')
+        return xdot,ydot,zdot
+
+    def get_diff_grad(self,x,y,z=0):
+        r = np.sqrt(x*x + y*y)
+        dx = 0.01*r
+        dy = 0.01*r
+        diff0 = self.get_diffusivity(x,y,z)
+        diffx = self.get_diffusivity(x+dx,y,z)
+        dDdx = (diffx-diff0)/dx
+        diffy = self.get_diffusivity(x,y+dy,z)
+        dDdy = (diffy-diff0)/dy
+        if self.ndim == 3:
+            dz = 0.01*r*float(self.variables['ASPECTRATIO'])
+            diffz = self.get_diffusivity(z,y,z+dz)
+            dDdz = (diffz-diff0)/dz
+        else:
+            dDdz = np.zeros_like(x)
+        return dDdx,dDdy,dDdz
+
+    def get_rho_grad(self,x,y,z=0):
+        r = np.sqrt(x*x + y*y)
+        dx = 0.01*r
+        dy = 0.01*r
+        rho0 = self.get_rho(x,y,z)
+        rhox = self.get_rho(x+dx,y,z)
+        drhox = (rhox-rho0)/dx
+        rhoy = self.get_rho(x,y+dy,z)
+        drhoy = (rhoy-rho0)/dy
+        if self.ndim == 3:
+            dz = 0.01*r*float(self.variables['ASPECTRATIO'])
+            rhoz = self.get_rho(z,y,z+dz)
+            drhoz = (rhoz-rho0)/dz
+        else:
+            drhoz = np.zeros_like(x)
+        return drhox,drhoy,drhoz
+
 
 
 

@@ -1,123 +1,189 @@
 import numpy as np
 from .constants import *
-from . import disk
 
 INCLUDE_DRAG = True
 INCLUDE_DIFFUSION = True
-DKD = True
 DEBUG = False
 
 class Particle(object):
-	"""a particle that can move through the disk"""
-	def __init__(self,x,y,z,a=0.01,rho_s=2):
-		self.a = a
-		self.rho_s = rho_s
+    """a particle that can move through the disk"""
+    def __init__(self,mesh,x,y,z,a=0.01,rho_s=2):
+        self.a = a
+        self.rho_s = rho_s
 
-		self.pos = np.array([x,y,z])
-		self.history = [np.array(self.pos)]
-		r = np.hypot(x,y)
-		phi = np.arctan2(y,x)
-		vk = r*disk.get_Omegak(r,z)
-		vg = disk.get_velocity(r,z)
-		self.vel = np.array([-vg*np.sin(phi),vg*np.cos(phi),0])
+        self.mesh = mesh
+        self.pos = np.array([x,y,z])
+        self.pos0 = np.array([x,y,z])
 
-	def get_stokes(self):
-		"""get the stokes number at the current location"""
-		x,y,z = self.pos
-		r = np.hypot(x,y)
-		om = disk.get_Omegak(r,z)
-		rho_g = disk.get_rho(r,z)
-		cs = disk.get_soundspeed(r)
-		return self.a*self.rho_s/(rho_g*cs)*om
+        # initialize velocity as same as gas
+        r = np.sqrt(x*x + y*y)
+        vk = r*mesh.get_Omega(x,y,z)
+        vgx,vgy,vgz = mesh.get_gas_vel(x,y,z)
+        print('gas vel : ',vgx,vgy,vgz)
+        self.vel = np.array([vgx,vgy,vgz])
+        # self.vel = np.zeros(3)
+        # self.vel[1]+=vk
+        self.vel0 = np.array(self.vel)
 
-	def get_dragAccel(self):
-		"""find the drag acceleration vector"""
-		x,y,z = self.pos
-		r = np.hypot(x,y)
-		phi = np.arctan2(y,x)
+    def update_position(self,x,y,z):
+        self.pos = np.array([x,y,z])
+
+    def update_velocity(self,vx,vy,vz):
+        self.vel = np.array([vx,vy,vz])
+
+    def get_stokes(self):
+        """get the stokes number at the current location"""
+        om = self.mesh.get_Omega(*self.pos)
+        rho_g = self.mesh.get_rho(*self.pos)
+        cs = self.mesh.get_soundspeed(*self.pos)
+        return self.a*self.rho_s/(rho_g*cs)*om
+
+    def get_dragAccel(self):
+        """find the drag acceleration vector"""
+        vgx,vgy,vgz = self.mesh.get_gas_vel(*self.pos)
+        vgas = np.array([vgx,vgy,vgz])
+        
+        vpar = np.array(self.vel)
+        
+        vtil = vgas - vpar
+        
+        if DEBUG:
+            x,y,z = self.pos
+            r = np.sqrt(x*x+y*y)
+            print('keplarian velocity')
+            print(r*self.mesh.get_Omega(*self.pos))
+            print('gas vel')
+            print(vgas)
+            print('particle vel')
+            print(vpar)
+            print('difference')
+            print(vtil)
+
+        # om = disk.get_Omegak(r,z)
+        # st = self.get_stokes()
+        rho_g = self.mesh.get_rho(*self.pos)
+        cs = self.mesh.get_soundspeed(*self.pos)
+        if DEBUG:
+            print('acceleration')
+            print(rho_g*cs/self.a/self.rho_s*vtil)
+        return rho_g*cs/self.a/self.rho_s*vtil
+
+    def get_gravAccel(self):
+        """find the acceleration due to the star gravity ndarray"""
+        G = float(self.mesh.variables['G'])
+        MSTAR = float(self.mesh.variables['MSTAR'])
+        GM = G*MSTAR
+        X = self.pos
+        dstar = np.linalg.norm(X)
+        return -GM/dstar**3 * X
+
+    def get_planetAccel(self,planet):
+        """grav acceleration due to planet ndarray"""
+        if planet == None:
+            return 0
+        X = self.pos
+        Xp = planet.pos
+
+        Mp = planet.mass
+        GM = G*Mp
+        dplanet = np.linalg.norm(X-Xp)
+        return -GM/dplanet**3 * (X-Xp)
+
+    def get_centAccel(self):
+        """Centrifugal acceleration due to rotating frame ndarray"""
+        omegaframe = float(self.mesh.variables['OMEGAFRAME'])
+        # print(omegaframe)
+        x,y,z = self.pos
+        vx,vy,vz = self.vel
+        # print(self.vel)
+        ax = 2*omegaframe*vy + x*omegaframe**2
+        # print(2*omegaframe*vy)
+        ay = -2*omegaframe*vx + y*omegaframe**2
+        az = 0
+        return np.array([ax,ay,az])
+
+    def get_particleDiffusivity(self):
+        """Particle diffusivity, Youdin & Lithwick 2007"""
+        Dgas = self.mesh.get_diffusivity(*self.pos)
+        St = self.get_stokes()
+        return Dgas/(1+St**2)
 
 
-		vgphi = disk.get_velocity(r,z)
-		vgas = np.array([-vgphi*np.sin(phi),vgphi*np.cos(phi),0])
-		
-		vpar = np.array(self.vel)
-		
-		vtil = vgas - vpar
-		
-		if DEBUG:
-			print('keplarian velocity')
-			print(r*disk.get_Omegak(r,z))
-			print('gas velocity')
-			print(vgphi)
-			print('gas vel')
-			print(vgas)
-			print('particle vel')
-			print(vpar)
-			print('difference')
-			print(vtil)
+    def total_accel(self,planet):
+        tot = 0
+        drag = self.get_dragAccel()
+        tot += drag
+        # print(f'{drag = }')
+        star = self.get_gravAccel()
+        tot += star
+        # print(f'{star = }')
+        plan = self.get_planetAccel(planet)
+        tot += plan
+        # print(f'{plan = }')
+        cent = self.get_centAccel()
+        tot += cent
+        # print(f'{cent = }')
 
-		# om = disk.get_Omegak(r,z)
-		# st = self.get_stokes()
-		rho_g = disk.get_rho(r,z)
-		cs = disk.get_soundspeed(r)
-		if DEBUG:
-			print('acceleration')
-			print(rho_g*cs/self.a/self.rho_s*vtil)
-		return rho_g*cs/self.a/self.rho_s*vtil
+        # print(f'{tot = }')
 
-	def get_gravAccel(self):
-		"""find the acceleration due to the star gravity"""
-		x,y,z = self.pos
-		dstar = np.sqrt(x*x+y*y+z*z) # distance to star
-		dstar_vec = np.array([x,y,z])
-		dstar_hat = dstar_vec/dstar
-		# print('grav accel')
-		# print(-GM/dstar**2 * dstar_hat)
-		return -GM/dstar**2 * dstar_hat
+        return tot
 
-	def update_velocity(self,dt):
-		"""update the velocity vector due to (drag) and grav"""
-		oldvel = np.array(self.vel)
-		oldvel += self.get_gravAccel()*dt
-		if INCLUDE_DRAG:
-			oldvel += self.get_dragAccel()*dt
-		self.vel = oldvel
+    def get_stokes_grad(self):
+        x,y,z = self.pos
+        r = np.sqrt(x*x + y*y)
+        dx = 0.01*r
+        dy = 0.01*r
+        St0 = self.get_stokes()
 
-	def get_vdiff(self):
-		return 0
+        def stokes(x,y,z):
+            # helper function to find stokes number
+            om = self.mesh.get_Omega(x,y,z)
+            rho_g = self.mesh.get_rho(x,y,z)
+            cs = self.mesh.get_soundspeed(x,y,z)
+            return self.a*self.rho_s/(rho_g*cs)*om
 
-	def update_position(self,dt):
-		"""update position based on current velocity"""
-		x,y,z = self.pos
-		r = np.hypot(x,y)
-		st = self.get_stokes()
+        Stx = stokes(x+dx,y,z)
+        dStdx = (Stx-St0)/dx
+        Sty = stokes(x,y+dy,z)
+        dStdy = (Sty-St0)/dy
+        if self.mesh.ndim == 3:
+            dz = 0.01*r*float(self.mesh.variables['ASPECTRATIO'])
+            Stz = self.get_diffusivity(z,y,z+dz)
+            dStdz = (Stz-St0)/dz
+        else:
+            dStdz = np.zeros_like(x)
+        return dStdx,dStdy,dStdz
 
-		veff = np.array(self.vel)
-		if INCLUDE_DIFFUSION:
-			vdiff = self.get_vdiff()
-			veff += vdiff
-		self.pos += veff*dt
-		if INCLUDE_DIFFUSION:
-			R = np.random.uniform(-1.,1.)
-			xi = 1./3.
-			D = disk.get_diffusivity(r,z)/(1+st**2)
-			self.pos += R*(2/xi*D*dt)**(1/2)
+    def get_vdiff(self):
+        """vdiff = d/dx D = d/dx Dg/(1+st^2)"""
+        Dg = self.mesh.get_diffusivity(*self.pos)
+        dDgdx = np.array(self.mesh.get_diff_grad(*self.pos))
+        St = self.get_stokes()
+        dStdx = np.array(self.get_stokes_grad())
+        p1 = dDgdx/(1+St**2)
+        p2 = -Dg/((1+St**2)**(2))*2*St*dStdx
+        return np.array([p1+p2]).reshape(3,)
 
-	def determine_dt(self):
-		"""determine dt based on 1/50th of period"""
-		x,y,z = self.pos
-		r = np.hypot(x,y)
-		om = disk.get_Omegak(r,z)
-		return (1/5000)*(TWOPI/om)
+    def get_vrho(self):
+        drhodx,drhody,drhodz = self.mesh.get_rho_grad(*self.pos)
+        D = self.get_particleDiffusivity()
+        rhog = self.mesh.get_rho(*self.pos)
 
-	def take_step(self):
-		dt = self.determine_dt()
-		if DKD:
-			self.update_position(0.5*dt)
-			self.update_velocity(dt)
-			self.update_position(0.5*dt)
-		elif KDK:
-			self.update_velocity(0.5*dt)
-			self.update_position(dt)
-			self.update_velocity(0.5*dt)
-		self.history.append(np.array(self.pos))
+        return np.array([D/rhog*drhodx, D/rhog*drhody, D/rhog*drhodz])
+
+
+    def get_veff(self):
+        veff = np.array(self.vel)
+        # print(f'vpart = {veff}')
+        
+        # vdiff = dD/dx
+        vdiff = self.get_vdiff()
+        # print(f'{vdiff = }')
+        veff += vdiff
+
+        # vrho = D/rho drho/dx
+        vrho = self.get_vrho()
+        # print(f'{vrho = }')
+        veff += vrho
+
+        return veff

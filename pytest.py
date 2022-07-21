@@ -4,13 +4,13 @@ import numpy as np
 import python as pt
 import python.constants as const
 
-FARGOOUT = './exampleout/fargo3d'
+FARGOOUT = './exampleout/fargo_rescale'
 
 def get_minmaxabs(arr):
-    maxabs = np.max(np.abs(arr))
+    maxabs = np.nanmax(np.abs(arr))
     return -maxabs,maxabs
 def get_minmax(arr):
-    return np.min(arr), np.max(arr)
+    return np.nanmin(arr), np.nanmax(arr)
 
 def get_scale(mesh):
     lenscale = 1
@@ -167,9 +167,40 @@ def find_nearest(array, value):
     idx = (np.abs(array - value)).argmin()
     return idx,array[idx]
 
+def get_rho(r,z,mesh):
+    """
+rho[l] = SIGMA0/sqrt(2.0*M_PI)/(R0*ASPECTRATIO)*pow(r/R0,-xi)* \
+        pow(sin(Zmed(k)),-beta-xi+1./(h*h));
+
+real xi = SIGMASLOPE+1.+FLARINGINDEX;
+real beta = 1.-2*FLARINGINDEX;
+real h = ASPECTRATIO*pow(r/R0,FLARINGINDEX);
+    """
+    def pow(a,b):
+        return a**b
+
+    sigma0 = float(mesh.variables['SIGMA0'])
+    R0 = float(mesh.variables['R0'])
+    ar = float(mesh.variables['ASPECTRATIO'])
+    ss = float(mesh.variables['SIGMASLOPE'])
+    fi = float(mesh.variables['FLARINGINDEX'])
+
+    xi = ss+1.+fi
+    beta = 1.-2.*fi
+    h = ar*pow(r/R0,fi)
+
+    rho0 = sigma0/np.sqrt(2*const.PI)/(R0*ar)*pow(r/R0,-xi)*1. # zmed = pi/2
+    s = np.sqrt(r**2 + z**2)
+    pol = np.arccos(z/s)
+
+    return rho0*pow(np.sin(pol),-beta-xi+1./(h*h))
+
+
 
 def main(fargodir):
-    mesh = pt.create_mesh(fargodir)
+    mesh = pt.create_mesh(fargodir,n=0)
+    minr = mesh.yedges.min()
+    maxr = mesh.yedges.max()
 
     k = -1
 
@@ -180,57 +211,159 @@ def main(fargodir):
     lenscale,vscale = get_scale(mesh)
 
     # set up cartesian grid at z=0 (midplane)
-    # nx = 250
-    # ny = 250
-    # nz = 1
-    # X = np.linspace(-10,10,nx)*lenscale
-    # Y = np.linspace(-10,10,ny)*lenscale
-    # Z = np.array([0.])*lenscale
-    nx = 1
+    nx = 250
     ny = 250
-    nz = 50
-    X = np.array([0.])*lenscale
-    Y = np.linspace(-2,2,ny)*lenscale
-    Z = np.linspace(-0.2,0.2,nz)*lenscale
+    nz = 1
+    X = np.linspace(-maxr,maxr,nx)
+    Y = np.linspace(-maxr,maxr,ny)
+    Z = np.array([0.])
+    s = np.s_[0,:,:]
+    # nx = 1
+    # ny = 250
+    # nz = 20
+    # X = np.array([0.])/lenscale
+    # Y = np.linspace(-2,2,ny)/lenscale
+    # Z = np.linspace(-0.025,0.025,nz)/lenscale
+    # s = np.s_[:,:,0]
 
     zz,yy,xx = np.meshgrid(Z,Y,X,indexing='ij')
 
     fig,ax = plt.subplots()
     rho = mesh.get_state_from_cart('gasdens',xx,yy,zz)
-    print(rho.shape)
-    im = ax.pcolormesh(yy[:,:,0],zz[:,:,0],np.log10(rho[:,:,0]))
+    im = ax.pcolormesh(xx[s]*lenscale,yy[s]*lenscale,np.log10(rho[s]))
     ax.set(title=f'Norbit = {get_norbit(mesh):.0f}\nx=0',
-        ylabel='z-coordinate',xlabel='y-coordinate')
+        ylabel='y-coordinate [au]',xlabel='x-coordinate [au]')
     # ax.set_aspect('equal')
 
     # the outline
-    ax.plot(mesh.ycenters,mesh.ycenters*np.cos(mesh.zcenters[0]),ls='-',c='k')
-    ax.plot(-mesh.ycenters,mesh.ycenters*np.cos(-mesh.zcenters[0]),ls='-',c='k')
-    ax.plot(mesh.ycenters,mesh.ycenters*np.cos(mesh.zcenters[-1]),ls='-',c='k')
-    ax.plot(-mesh.ycenters,mesh.ycenters*np.cos(-mesh.zcenters[-1]),ls='-',c='k')
+    # ax.plot(mesh.ycenters,mesh.ycenters*np.cos(mesh.zcenters[0]),ls='-',c='k')
+    # ax.plot(-mesh.ycenters,mesh.ycenters*np.cos(-mesh.zcenters[0]),ls='-',c='k')
+    # ax.plot(mesh.ycenters,mesh.ycenters*np.cos(mesh.zcenters[-1]),ls='-',c='k')
+    # ax.plot(-mesh.ycenters,mesh.ycenters*np.cos(-mesh.zcenters[-1]),ls='-',c='k')
 
 
-    for k in range(mesh.nz+1):
-        ax.plot(mesh.yedges,mesh.yedges*np.cos(mesh.zedges[k]),
-            c='k',ls='--',alpha=0.5)
-        ax.plot(-mesh.yedges,mesh.yedges*np.cos(-mesh.zedges[k]),
-            c='k',ls='--',alpha=0.5)
+    # for k in range(mesh.nz+1):
+    #     ax.plot(mesh.yedges,mesh.yedges*np.cos(mesh.zedges[k]),
+    #         c='k',ls='--',alpha=0.5)
+    #     ax.plot(-mesh.yedges,mesh.yedges*np.cos(-mesh.zedges[k]),
+    #         c='k',ls='--',alpha=0.5)
 
-    ax.set(ylim=(0,Z.max()))
+    # ax.set(ylim=(Z.min(),Z.max()))
 
     plt.show()
 
+    fig,axs = plt.subplots(2,2,sharey=True,sharex=True)
+    ax = axs[0,0]
+    rho = mesh.get_rho(xx,yy,zz)
+    im = ax.pcolormesh(xx[s]*lenscale,yy[s]*lenscale,np.log10(rho[s]))
+    cb = plt.colorbar(im,ax=ax,location='top',label=r'$\rho_g$')
 
-    i = 0
+    ax = axs[1,0]
+    diff = mesh.get_diffusivity(xx,yy,zz)
+    im = ax.pcolormesh(xx[s]*lenscale,yy[s]*lenscale,diff[s])
+    cb = plt.colorbar(im,ax=ax,location='top',label='D')
 
-    ytarget = 1.2
-    j,y = find_nearest(Y,ytarget)
+    vx,vy,_ = mesh.get_gas_vel(xx,yy,zz)
+    ax = axs[0,1]
+    vmin,vmax = get_minmaxabs(vx[s])
+    print(vmin,vmax)
+    im = ax.pcolormesh(xx[s]*lenscale,yy[s]*lenscale,vx[s],
+        vmin=vmin,vmax=vmax,cmap='coolwarm')
+    ct = ax.contour(xx[s]*lenscale,yy[s]*lenscale,vx[s],[0])
+    cb = plt.colorbar(im,ax=ax,location='top',label='vx')
+    ax = axs[1,1]
+    im = ax.pcolormesh(xx[s]*lenscale,yy[s]*lenscale,vy[s],
+        vmin=vmin,vmax=vmax,cmap='coolwarm')
+    ct = ax.contour(xx[s]*lenscale,yy[s]*lenscale,vy[s],[0])
+    cb = plt.colorbar(im,ax=ax,location='top',label='vy')
+
+    for ax in axs.flatten():
+        ax.set_aspect('equal')
+
+    plt.show()
 
     fig,ax = plt.subplots()
-    ax.plot(np.log10(rho[:,j,i]),Z,ls='-',marker='o')
-    ax.set(title=f'rho(z, y={y:.2f}, x=0)',ylabel='z',xlabel='rho')
+    X = mesh.ycenters
+    Y = np.zeros_like(X)
+    Z = np.zeros_like(X)
+    vx,vy,_ = mesh.get_gas_vel(X,Y,Z)
+    ax.plot(X,vy)
+    from scipy.optimize import root
+    from scipy.interpolate import CubicSpline
+    cs = CubicSpline(X,vy)
+    rt = root(cs,5*const.AU)
+    print(rt)
+
 
     plt.show()
+
+    # fig,axs = plt.subplots(2,2,sharey=True,sharex=True)
+    # drdx,drdy,_ = mesh.get_rho_grad(xx,yy,zz)
+    # ax = axs[0,0]
+    # im = ax.pcolormesh(xx[s]*lenscale,yy[s]*lenscale,drdx[s])
+    # cb = plt.colorbar(im,ax=ax,location='top',label=r'd $\rho_g$/d $x$')
+
+    # ax = axs[0,1]
+    # im = ax.pcolormesh(xx[s]*lenscale,yy[s]*lenscale,drdy[s])
+    # cb = plt.colorbar(im,ax=ax,location='top',label=r'd $\rho_g$/d $y$')
+
+    # drdx,drdy,_ = mesh.get_diff_grad(xx,yy,zz)
+    # ax = axs[1,0]
+    # im = ax.pcolormesh(xx[s]*lenscale,yy[s]*lenscale,drdx[s])
+    # cb = plt.colorbar(im,ax=ax,location='top',label=r'd $D$/d $x$')
+
+    # ax = axs[1,1]
+    # im = ax.pcolormesh(xx[s]*lenscale,yy[s]*lenscale,drdy[s])
+    # cb = plt.colorbar(im,ax=ax,location='top',label=r'd $D$/d $y$')
+
+
+    # for ax in axs.flatten():
+    #     ax.set_aspect('equal')
+
+    # plt.show()
+
+
+    # i = 0
+
+    # ytarget = 1.2
+    # j,y = find_nearest(Y,ytarget)
+    # H = float(mesh.variables['ASPECTRATIO'])*y
+    # zmin = Z.min()
+    # zmax = Z.max()
+
+    # fig,ax = plt.subplots()
+
+    # ax.plot(np.log10(rho[:,j,i]),Z/H,ls='-',label='interpolated')
+
+    # Zp = y*np.cos(mesh.zcenters)
+    # Z = np.zeros(Zp.size*2)
+    # Z[0:Zp.size] = Zp
+    # Z[Zp.size:] = -Zp[::-1]
+    # zz,yy,xx = np.meshgrid(Z,Y,X,indexing='ij')
+    # rho = mesh.get_state_from_cart('gasdens',xx,yy,zz)
+    # ax.plot(np.log10(rho[:,j,i]),Z/H,ls='',marker='o',label='model centers')
+
+    # zmin = min(Z.min(),zmin)
+    # zmax = max(Z.max(),zmin)
+
+    
+    # zall = np.linspace(zmin,zmax,150)
+    # ax.plot(np.log10(get_rho(y,zall,mesh)),zall/H,ls='--',c='k',label='analytic')
+
+    # print('zmin:')
+    # kmax,polmax = find_nearest(mesh.zcenters,const.PI/2)
+    # print(y*np.cos(polmax))
+
+    # ax.axhline( y*np.cos(polmax)/H,c='grey',ls=':',label='lowest cell')
+    # ax.axhline(-y*np.cos(polmax)/H,c='grey',ls=':')
+
+    # ax.legend()
+
+    # ax.set(title=f'rho(z, y={y:.2f}, x=0, t={mesh.n["gasdens"]:.0f})',
+    #     ylabel='z/H',xlabel='log rho',
+    #     ylim=(-0.5,0.5),xlim=(-2.74,-2.66))
+
+    # plt.show()
 
     '''or mesh also contains the output data from fargo
     in its original coordinates!
@@ -246,7 +379,17 @@ def main(fargodir):
     # the Mesh also has the fargo output variables compiled at runtime
     print(f"{mesh.variables['COORDINATES'] = }")
 
+def submain(fargodir):
+    fig,ax = plt.subplots()
+    cmap = plt.get_cmap('magma',12)
+    for n in reversed(range(10)):
+        mesh = pt.create_mesh(fargodir,n=n)
+        ax.plot(mesh.ycenters,np.mean(np.log10(mesh.state['gasdens']),
+            axis=0),c=cmap(n),alpha=0.3)
+    plt.show()
+
 if __name__ == '__main__':
+    # submain(FARGOOUT)
     main(FARGOOUT)
 
     

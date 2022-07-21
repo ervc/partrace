@@ -10,10 +10,10 @@
 
 [x] Change coordinates to be cartesian
 
-[] Interpolation of data outputs for cartesian grid
+[x] Interpolation of data outputs for cartesian grid
 
-[] change particle to readin from mesh
+[x] change particle to readin from mesh
 
-[] incorporate planet into mesh? as own class?
+[x] incorporate planet as class
 
-- mesh.planet?
+[] include centrifugal acceleration
