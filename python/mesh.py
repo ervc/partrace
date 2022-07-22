@@ -11,6 +11,7 @@ class Mesh():
         self.ndim = 3
         self.read_variables()
         self.get_domain()
+        self.quiet = quiet
         if not quiet:
             self.confirm()
         self.state = {}
@@ -248,18 +249,18 @@ class Mesh():
 
     def _vel_sphere2cart(self,az,r,pol,azdot,rdot,poldot):
         xdot = (np.cos(az)*np.sin(pol)*rdot 
-                - r*np.sin(az)*np.sin(pol)*azdot
-                + r*np.cos(az)*np.cos(pol)*poldot)
+                - np.sin(az)*np.sin(pol)*azdot
+                + np.cos(az)*np.cos(pol)*poldot)
         ydot = (np.sin(az)*np.sin(pol)*rdot
-                + r*np.cos(az)*np.sin(pol)*azdot
-                + r*np.sin(az)*np.cos(pol)*poldot)
+                + np.cos(az)*np.sin(pol)*azdot
+                + np.sin(az)*np.cos(pol)*poldot)
         zdot = np.cos(pol)*rdot - r*np.sin(pol)*poldot
         return xdot,ydot,zdot
 
 
     def _vel_cyl2cart(self,az,r,z,azdot,rdot,zdot):
-        xdot = np.cos(az)*rdot - r*np.sin(az)*azdot
-        ydot = np.sin(az)*rdot + r*np.cos(az)*azdot
+        xdot = np.cos(az)*rdot - np.sin(az)*azdot
+        ydot = np.sin(az)*rdot + np.cos(az)*azdot
         zdot = zdot
         return xdot,ydot,zdot
 
@@ -583,8 +584,6 @@ class Mesh():
             rdot = self.get_state_from_cart('gasvy',x,y,z)
             zdot = self.get_state_from_cart('gasvz',x,y,z)
             xdot,ydot,zdot = self._vel_cyl2cart(az,r,z,azdot,rdot,zdot)
-            xdot = xdot/r
-            ydot = ydot/r
         elif self.variables['COORDINATES'] == 'spherical':
             az,r,pol = self._cart2sphere(x,y,z)
             azdot = self.get_state_from_cart('gasvx',x,y,z)

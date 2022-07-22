@@ -8,7 +8,7 @@ FARGODIR = './exampleout/fargo_rescale'
 
 def main(fargodir):
     def npzfilename(n,a):
-        return f'/history_n{n}_a{a}_diff.npz'
+        return f'/history_n{n}_a{a}.npz'
     fig,axs = plt.subplots(1,2)
     n=50
     alist = [1,10,100]

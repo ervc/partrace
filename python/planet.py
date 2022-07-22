@@ -18,8 +18,9 @@ class Planet():
         self.hill = self.get_hill_radius()
         self.bondi = self.get_bondi_radius()
         self.envelope = self.get_envelope_radius()
-        print(f'Planet {self.name} read in from {self.fname}')
-        print(f'  planet is located at {self.pos}')
+        if not mesh.quiet:
+            print(f'Planet {self.name} read in from {self.fname}')
+            print(f'  planet is located at {self.pos}')
 
     def read_data(self):
         with open(self.mesh.fargodir+'/'+self.fname,'r') as f:
