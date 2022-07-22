@@ -254,7 +254,7 @@ class Mesh():
         ydot = (np.sin(az)*np.sin(pol)*rdot
                 + np.cos(az)*np.sin(pol)*azdot
                 + np.sin(az)*np.cos(pol)*poldot)
-        zdot = np.cos(pol)*rdot - r*np.sin(pol)*poldot
+        zdot = np.cos(pol)*rdot - np.sin(pol)*poldot
         return xdot,ydot,zdot
 
 
