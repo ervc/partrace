@@ -36,6 +36,6 @@ ax.plot(rs,rotvk(rs),ls='--',label="rotating vk")
 ax.legend()
 ax=axs[1]
 ax.axhline(0,c='k')
-ax.plot(rs,vphi-rotvk(rs),ls='--')
+ax.plot(rs,rotvk(rs)-vphi,ls='--')
 ax.set(ylabel='difference')
 plt.show()
