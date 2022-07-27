@@ -4,6 +4,8 @@
 
 #### Author: Eric Van Clepper
 
+### Now officially downloadable! (locally)
+
 ## To Do:
 
 [x] edges and centers should be in array
@@ -16,4 +18,4 @@
 
 [x] incorporate planet as class
 
-[] include centrifugal acceleration
+[x] include centrifugal acceleration
