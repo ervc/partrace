@@ -78,7 +78,6 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
 
     # create solver and set up returnables
     kw = kwargs
-    print(f'{kw = }')
     maxh=None
     if 'max_step' in kw:
         maxh = kw['max_step']

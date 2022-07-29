@@ -1,8 +1,6 @@
 import numpy as np
 from .constants import *
 
-INCLUDE_DRAG = True
-INCLUDE_DIFFUSION = True
 DEBUG = False
 
 class Particle(object):
@@ -19,7 +17,6 @@ class Particle(object):
         r = np.sqrt(x*x + y*y)
         vk = r*mesh.get_Omega(x,y,z)
         vgx,vgy,vgz = mesh.get_gas_vel(x,y,z)
-        print('gas vel : ',vgx,vgy,vgz)
         self.vel = np.array([vgx,vgy,vgz])
         # self.vel = np.zeros(3)
         # self.vel[1]+=vk
@@ -46,26 +43,11 @@ class Particle(object):
         vpar = np.array(self.vel)
         
         vtil = vgas - vpar
-        
-        if DEBUG:
-            x,y,z = self.pos
-            r = np.sqrt(x*x+y*y)
-            print('keplarian velocity')
-            print(r*self.mesh.get_Omega(*self.pos))
-            print('gas vel')
-            print(vgas)
-            print('particle vel')
-            print(vpar)
-            print('difference')
-            print(vtil)
 
         # om = disk.get_Omegak(r,z)
         # st = self.get_stokes()
         rho_g = self.mesh.get_rho(*self.pos)
         cs = self.mesh.get_soundspeed(*self.pos)
-        if DEBUG:
-            print('acceleration')
-            print(rho_g*cs/self.a/self.rho_s*vtil)
         return rho_g*cs/self.a/self.rho_s*vtil
 
     def get_gravAccel(self):
@@ -92,12 +74,9 @@ class Particle(object):
     def get_centAccel(self):
         """Centrifugal acceleration due to rotating frame ndarray"""
         omegaframe = float(self.mesh.variables['OMEGAFRAME'])
-        # print(omegaframe)
         x,y,z = self.pos
         vx,vy,vz = self.vel
-        # print(self.vel)
         ax = 2*omegaframe*vy + x*omegaframe**2
-        # print(2*omegaframe*vy)
         ay = -2*omegaframe*vx + y*omegaframe**2
         az = 0
         return np.array([ax,ay,az])
@@ -113,18 +92,13 @@ class Particle(object):
         tot = 0
         drag = self.get_dragAccel()
         tot += drag
-        # print(f'{drag = }')
         star = self.get_gravAccel()
         tot += star
-        # print(f'{star = }')
         plan = self.get_planetAccel(planet)
         tot += plan
-        # print(f'{plan = }')
         cent = self.get_centAccel()
         tot += cent
-        # print(f'{cent = }')
 
-        # print(f'{tot = }')
 
         return tot
 
@@ -174,16 +148,13 @@ class Particle(object):
 
     def get_veff(self):
         veff = np.array(self.vel)
-        # print(f'vpart = {veff}')
         
         # vdiff = dD/dx
         vdiff = self.get_vdiff()
-        # print(f'{vdiff = }')
         veff += vdiff
 
         # vrho = D/rho drho/dx
         vrho = self.get_vrho()
-        # print(f'{vrho = }')
         veff += vrho
 
         return veff
