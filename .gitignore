@@ -3,5 +3,6 @@ __pycache__/
 testing/
 partrace.egg-info/
 src/
+build/
 *.png
 *.npz
