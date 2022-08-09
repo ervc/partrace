@@ -1,7 +1,27 @@
+"""
+Functions to help with integration of particles in the mesh
+"""
+
 import numpy as np
 
 class Solver():
-    """Helper class for ODE solution"""
+    """Helper class for ODE solution
+    ATTRIBUTES
+    status : int
+        status of solver. 
+            -2 = other
+            -1 = fail
+             0 = success
+             1 = particle reached inner edge of mesh
+             2 = particle reached outer edge of mesh
+             3 = particle was accreted onto planet
+    times : array (nout,)
+        long array of output times from solver
+    history : array (nout,y.shape)
+        long array of output variables
+    sol : solver
+        rk45 solver just in case
+    """
     def __init__(self,status,times,history,sol):
         self.status = status
         self.times = times
@@ -32,7 +52,9 @@ def add_diffusion(particle,rk):
 
 
 def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
-    """ODE solver including random diffusive movement.
+    """ODE solver including random diffusive movement. Similar in
+    practice to scipy.integrate.solve_ode, but with added diffusion
+    in solver.
 
     INPUTS
     ------
@@ -55,17 +77,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
 
     RETURNS
     -------
-    status : int
-        status of solver. 
-            0 = success
-            -1 = fail
-            1 = other
-    times : array (nout,)
-        long array of output times from solver
-    history : array (nout,y.shape)
-        long array of output variables
-    sol : solver
-        rk45 solver just in case
+    Solver obj
     """
     from scipy.integrate import RK45
     particle,planet = args
@@ -113,10 +125,11 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
             status = 1
         elif r >= np.nanmax(particle.mesh.ycenters):
             status = 2
-        xp,yp,zp = rk.y[:3]-planet.pos
-        rp = np.sqrt(xp*xp + yp*yp + zp*zp)
-        if rp<=planet.envelope:
-            status = 3
+        if planet is not None:
+            xp,yp,zp = rk.y[:3]-planet.pos
+            rp = np.sqrt(xp*xp + yp*yp + zp*zp)
+            if rp<=planet.envelope:
+                status = 3
         if rk.t/tf > n*tout:
             n+=1
             print(rk.t/tf,r/minr,rk.step_size/maxh,rk.y)
@@ -129,7 +142,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
         np.savez(savefile,times=times,history=history)
     return Solver(status,times,history,rk)
 
-def integrate(t0,tf,particle,planet,savefile=False,**kwargs):
+def integrate(t0,tf,particle,planet = None,savefile=None,**kwargs):
     """
     Do the integration for particle in a mesh including a planet
     from time t0 -> tf. Calls the function solve_ode()
@@ -140,6 +153,15 @@ def integrate(t0,tf,particle,planet,savefile=False,**kwargs):
         start time of integration
     tf : float
         end time of integration
+    particle : Particle
+        particle class that will be integrated in time
+    OPTIONAL
+    planet : Planet
+        Planet to consider if there is one in the mesh
+        default: None
+    savefile : str
+        if not None, output integration results as compressed npz file
+        with name savefile
     kwargs : optional keyword arguments to pass to solve_ode()
         This includes:
             max_step : float
@@ -155,16 +177,8 @@ def integrate(t0,tf,particle,planet,savefile=False,**kwargs):
     sol = solve_ode(fun,t0,Y0,tf,args=args,savefile=savefile,**kwargs)
     return sol
 
-'''
-class Integrator():
-    """docstring for Integrator"""
-    def __init__(self,particle,planet):
-        self.particle = particle
-        self.planet = planet
-
-'''
-
 def one_step(particle,planet,**kwargs):
+    """Debugging/testing function to take only one step at a time"""
     x0,y0,z0 = particle.pos0
     print('particle X0, V0')
     print(x0,y0,z0)

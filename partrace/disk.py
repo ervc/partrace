@@ -1,3 +1,8 @@
+"""
+Useful analytic functions for a typical disk (largely deprecated)
+"""
+
+
 import numpy as np
 from .constants import *
 
@@ -37,6 +42,7 @@ def unperturbed_sigma(r):
     return sig0*(r/AU)**(-p)
 
 def perturbed_sigma(r):
+    '''Perturbed disk profile a la Alarcon et al 2022'''
     r0 = 4.5*AU      # gap center
     rw = 0.16*r      # gap width
     rwh = 0.5*rw    # gap half width
@@ -46,6 +52,7 @@ def perturbed_sigma(r):
     return pert
 
 def get_sigma(r):
+    '''Surface density'''
     if PERTURBED:
         return perturbed_sigma(r)
     else:

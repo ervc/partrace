@@ -1,3 +1,13 @@
+"""
+Class for regridding mesh onto cartesian grid.
+
+Use of this is NOT recommeded, instead use mesh.interpolators to 
+get data as needed at a given location. Once interpolators are made
+slow-down is negligable, plus interpolation on the cartesian grid
+would have to be done anyway.
+"""
+
+
 import numpy as np
 import matplotlib.pyplot as plt
 

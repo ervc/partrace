@@ -1,3 +1,8 @@
+"""
+Useful constants for other libraries
+"""
+
+
 MSUN = 1.98847e33
 MJUP = 1.898e30
 MEARTH = 5.97e27

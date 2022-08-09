@@ -1,9 +1,29 @@
+"""
+Contains planet class for planet embedded in mesh
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from .constants import *
 
 class Planet():
-    """docstring for Planet"""
+    """Planet embedded in mesh, information is read in from 
+    planet{planet_no}.dat in mesh.fargodir
+    INPUTS
+    ------
+    mesh : Mesh
+        Mesh object that planet is embedded in
+    OPTIONAL
+    planet_no : int
+        planet number to read in data from. planet is read in from
+        mesh.fargodir/planet{planet_no}.dat. Mesh.n is used to get
+        planet location data consistent with mesh.
+        default: 0
+    name : str
+        name of planet for tracking if there is more than one planet
+        in mesh
+        default: 'planet'
+    """
     def __init__(self, mesh, planet_no=0, name='planet'):
         self.mesh = mesh
         self.name = name
@@ -23,6 +43,7 @@ class Planet():
             print(f'  planet is located at {self.pos}')
 
     def read_data(self):
+        """reads in data from planet file and stores as class values"""
         with open(self.mesh.fargodir+'/'+self.fname,'r') as f:
             for line in f:
                 nout = int(line.split()[0])
@@ -37,6 +58,7 @@ class Planet():
                 self.omegaframe = omegaframe
 
     def get_hill_radius(self):
+        """determine the hill radius of the planet"""
         x,y,z = self.pos
         sma = np.sqrt(x*x + y*y)
         Mpl = self.mass
@@ -44,12 +66,14 @@ class Planet():
         return sma*(Mpl/3/Mstar)**(1/3)
 
     def get_bondi_radius(self):
+        """determine the bondi radius of the planet"""
         G = float(self.mesh.variables['G'])
         Mpl = self.mass
         cs = self.mesh.get_soundspeed(*self.pos)
         return 2*G*Mpl/cs/cs
 
     def get_envelope_radius(self):
+        """determine the envelope radius around the planet"""
         rh = self.hill
         rb = self.bondi
         return min(rh/4,rb)

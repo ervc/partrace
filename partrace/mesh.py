@@ -1,10 +1,39 @@
+"""Main backbone of partrace implementation. The Mesh class takes in
+FARGO3D output from a given directory and save the data for the scalar
+variables as a mesh. By default, Mesh is in the same coordinate system
+as fargo output, but data can all be determined from cartesian inputs
+using supplied functions.
+"""
+
 import numpy as np
 import matplotlib.pyplot as plt
 from .constants import *
 
 class Mesh():
-    """Fargo domain mesh. Contains the domain, density, 
+    """Fargo domain mesh. Contains the domain, density, energy 
     and velocity mesh.
+
+    INPUTS
+    ------
+    fargodir : str
+        directory where fargo output data can be found
+    OPTIONAL
+    states : str, list
+        list of states to read in from fargooutput. If states=='all',
+        then states of ['gasdens','gasvx','gasvy','gasvz','gasenergy']
+        are read in. If states==None, then no states will be read in.
+        default: 'all'      
+    n : int
+        which number output to read. i.e. gas density will be read in
+        fargodir/gasdens{n}.dat. If n==-1, then the last output will be
+        read. Values are saved in self.n dictionary for each state.
+        Ideally, all n values are the same and this is redundant, but if
+        n = -1 is used, this can check that all the data is read in from
+        the same output.
+        default: -1
+    quiet : bool
+        print confirmation messages to stdout
+        default: False
     """
     def __init__(self, fargodir, states='all', n=-1, quiet=False):
         self.fargodir = fargodir
@@ -25,12 +54,13 @@ class Mesh():
             if states == 'all':
                 states = ['gasdens','gasvx','gasvy','gasvz','gasenergy']
             for state in states:
+                # set gasvz to 0 if 2dimensional output
                 if state == 'gasvz' and self.ndim == 2:
                     self.state['gasvz'] = np.zeros_like(self.state['gasvx'])
                 else:
                     self.read_state(state,n)
-                interp = self.create_interpolator(state)
-                self.interpolators[state] = interp
+                # create an interpolator to get values off grid
+                self.interpolators[state] = self.create_interpolator(state)
             if not quiet:
                 outstr = ('Initialized, self.states contains:\n'
                     + f'{list(self.state.keys())}\n'
@@ -41,6 +71,7 @@ class Mesh():
 
 
     def confirm(self):
+        """prints confirmation message from mesh creation"""
         conf_msg = ''
         conf_msg += 'Mesh created\n'
         conf_msg += f'Read in from {self.fargodir}\n'
@@ -115,12 +146,6 @@ class Mesh():
           zcenters = (nz,)
         Note: nz = 1 if ndim == 2
 
-        Also creates grids of edges and centers in output coordinates
-        and converts to cartesian coordinates.
-
-        Default
-          edges = dict; contains 'x','y','z'
-          centers = dict; contains 'x','y','z'
         where:
           if coords == cylindrical:
             "x" = azimuth
@@ -130,41 +155,11 @@ class Mesh():
             "x" = azimuth
             "y" = radius
             "z" = polar
-        shapes:
-          edges['x'] = (nz+1,ny+1,nx+1) <- gives lower "x" edge of cell 
-                         i,j,k, where "x" is in default code output
-                         (usually "x" is azimuth for cyl or spherical)
-          centers['x'] = (nz,ny,nx) <- gives "x" value at center of cell
-
-        Cartesian
-          cartedges = dict; contains 'x','y','z'
-          cartcenters = dict; contains 'x','y','z'
-        where:
-          "x","y", and "z" are cartesian coordinates centered at star
-        shapes:
-          cartedges['x'] = (nz+1,ny+1,nx+1) <- gives lower x edge of cell
-          cartcenters['x'] = (nz,nx,ny) <- gives center x value of cell
-
-        IMPORTANT: x[k,j,i] is "next to" x[k,j,i+1] in the azimuth 
-        direction, so dx = x[k,j,i+1]-x[k,j,i] may be positive or 
-        negative, and depends on the cell. Cell i,j,k is still indexed
-        by the original coordinate system, either cyl or spherical.
     
         """
         self._readin_edges(ghostcells=ghostcells)
 
         self._get_centers()
-
-        # create arrays
-        self.edges = {}
-        self.edges['z'],self.edges['y'],self.edges['x'] = np.meshgrid(
-            self.zedges,self.yedges,self.xedges,indexing='ij'
-        )
-
-        self.centers = {}
-        self.centers['z'],self.centers['y'],self.centers['x'] = np.meshgrid(
-            self.zcenters,self.ycenters,self.xcenters,indexing='ij'
-        )
 
     def _readin_edges(self,ghostcells=True):
         """Helper function to readin domain[x,y,z].dat files"""
@@ -231,6 +226,7 @@ class Mesh():
         return x,y,z
 
     def _cart2sphere(self,x,y,z):
+        """convert cartesian to spherical"""
         r = np.sqrt(x*x + y*y + z*z)
         az = np.arctan2(y,x)
         pol = np.arccos(z/r)
@@ -243,11 +239,13 @@ class Mesh():
         return x,y,z
 
     def _cart2cyl(self,x,y,z):
+        """convert cartesian to cylindrical"""
         r = np.sqrt(x*x + y*y)
         az = np.arctan2(y,x)
         return az,r,z
 
     def _vel_sphere2cart(self,az,r,pol,azdot,rdot,poldot):
+        """convert spherical velocities to cartesian velocities"""
         xdot = (np.cos(az)*np.sin(pol)*rdot 
                 - np.sin(az)*np.sin(pol)*azdot
                 + np.cos(az)*np.cos(pol)*poldot)
@@ -259,6 +257,7 @@ class Mesh():
 
 
     def _vel_cyl2cart(self,az,r,z,azdot,rdot,zdot):
+        """convert cylindrical velocities to cartesian velocities"""
         xdot = np.cos(az)*rdot - np.sin(az)*azdot
         ydot = np.sin(az)*rdot + np.cos(az)*azdot
         zdot = zdot
@@ -269,8 +268,8 @@ class Mesh():
         """readin the grid data for output 'state' at output number n. 
         Default n=-1 gives last ouptut.
 
-        This can be called by the user or called automatically in init()
-        by specifying the 'states' keyword.
+        This is called automatically in __init__(), but can be called
+        by the user to update n value or readin new files.
         """
         MAXN = 1000
 
@@ -346,80 +345,6 @@ class Mesh():
 
         return im
 
-
-    def get_cell_from_pol(self,x,y,z=0):
-        """Determine the i,j,k cell index for polar coordinate x,y,z 
-        in specified units
-        """
-
-        flag = 0
-        which = ''
-        if x < self.xedges[0] or x > self.xedges[-1]:
-            flag += 1
-            which += 'x'
-        if y < self.yedges[0] or y > self.yedges[-1]:
-            flag += 1
-            which += 'y'
-        if z < self.zedges[0] or z > self.zedges[-1]:
-            flag += 1
-            which += 'z'
-
-        errmessage = (f'Error: coordinate {x,y,z} is not in grid\n'
-                        + f'Problem in {which} direction\n'
-                        + f'  xlims = {self.xedges[0], self.xedges[-1]}\n'
-                        + f'  ylims = {self.yedges[0], self.yedges[-1]}\n'
-                        + f'  zlims = {self.zedges[0], self.zedges[-1]}')
-
-        if flag > 0:
-            # raise Exception(errmessage)
-            # print(errmessage)
-            return None
-
-        icell = 0
-        for i in range(self.nx):
-            icell = i
-            if self.xedges[i+1] >= x:
-                break
-        jcell = 0
-        for j in range(self.ny):
-            jcell = j
-            if self.yedges[j+1] >= y:
-                break
-        kcell = 0
-        for k in range(self.nz):
-            kcell = k
-            if self.zedges[k+1] >= z:
-                break
-
-        return icell,jcell,kcell
-
-
-    def get_cell_from_cyl(self,az,r,z):
-        if self.variables['COORDINATES'] == 'cylindrical':
-            return self.get_cell_from_pol(az,r,z)
-        elif self.variables['COORDINATES'] == 'spherical':
-            s = np.sqrt(r*r + z*z) # spherical radius
-            pol = np.arccos(z/s)
-            return self.get_cell_from_pol(az,s,pol)
-        else:
-            raise Exception("Coordinate system is uncertain,"
-                + " cannot convert to default coordinates.")
-            return None
-
-
-    def get_cell_from_cart(self,x,y,z):
-        if self.variables['COORDINATES'] == 'spherical':
-            az,r,pol = self._cart2sphere(x,y,z)
-            return self.get_cell_from_pol(az,r,pol)
-        elif self.variables['COORDINATES'] == 'cylindrical':
-            az,r,z = self._cart2cyl(x,y,z)
-            return self.get_cell_from_pol(az,r,z)
-        else:
-            raise Exception("Coordinate system is uncertain,"
-                + " cannot convert to default coordinates.")
-            return None
-
-
     def get_state_from_cart(self,state,x,y,z=0):
         """Get the value of 'state' at a given cartesian coordinate
         """
@@ -451,7 +376,7 @@ class Mesh():
             if self.ndim == 2:
                 return interp(np.stack([r,az],axis=-1))
             else:
-                return interp(np.stack([pol,r,az],axis=-1))
+                return interp(np.stack([pol,r,az],axis=-1))[0]
 
         else:
             raise Exception('uncertain on coordinates,'
@@ -468,13 +393,15 @@ class Mesh():
 
         Y = self.ycenters
 
-        # reflective z boundary
-        # z  = pi/2 - delta     delta = pi/2 - z
-        # z' = pi/2 + delta
-        # z' = (pi/2 - delta) + 2*delta
-        # z' = z + 2*(pi/2 - z)
-        #    = z + pi - 2*z
-        #    = pi-z
+        """
+        reflective z boundary
+        z  = pi/2 - delta     delta = pi/2 - z
+        z' = pi/2 + delta
+        z' = (pi/2 - delta) + 2*delta
+        z' = z + 2*(pi/2 - z)
+           = z + pi - 2*z
+           = pi-z
+        """
         lenz = len(self.zcenters)
         Z = np.zeros(2*lenz)
         Z[0:lenz] = self.zcenters
@@ -507,6 +434,7 @@ class Mesh():
         return interp
 
     def get_scaleheight(self,x,y,z=0):
+        """return the scaleheight at given cartesian location"""
         r = np.sqrt(x*x + y*y)
         ar = float(self.variables['ASPECTRATIO'])
         fi = float(self.variables['FLARINGINDEX'])
@@ -515,6 +443,7 @@ class Mesh():
 
 
     def get_Omega(self,x,y,z=0):
+        """return keplerian frequency at given cartesian location"""
         G = float(self.variables['G'])
         Mstar = float(self.variables['MSTAR'])
         GM = G*Mstar
@@ -523,6 +452,7 @@ class Mesh():
         return np.sqrt(GM/r3)
 
     def get_soundspeed(self,x,y,z=0):
+        """Return the soundspeed at given cartesian location"""
         # H = self.get_scaleheight(x,y,z)
         # Om = self.get_Omega(x,y,z)
         # return H*Om
@@ -559,6 +489,7 @@ class Mesh():
         return rho
 
     def get_gas_vel(self,x,y,z=0):
+        """Return the cartesian gas velocity at given location"""
         if self.variables['COORDINATES'] == 'cylindrical':
             az,r,z = self._cart2cyl(x,y,z)
             azdot = self.get_state_from_cart('gasvx',x,y,z)
@@ -577,6 +508,7 @@ class Mesh():
         return xdot,ydot,zdot
 
     def get_diff_grad(self,x,y,z=0):
+        """Return the cartesian gradient of the diffusivity"""
         r = np.sqrt(x*x + y*y)
         dx = 0.01*r
         dy = 0.01*r
@@ -594,6 +526,7 @@ class Mesh():
         return dDdx,dDdy,dDdz
 
     def get_rho_grad(self,x,y,z=0):
+        """return the cartesian gradient of the density"""
         r = np.sqrt(x*x + y*y)
         dx = 0.01*r
         dy = 0.01*r
