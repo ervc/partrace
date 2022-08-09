@@ -531,10 +531,9 @@ class Mesh():
 
 
     def get_diffusivity(self,x,y,z=0):
-        """Determine the diffusivity at a given location
+        """Determine the diffusivity (aka viscosity) at a given location
         D = alpha*cs*H = alpha*H**2*omega = nu
         """
-        az,r,z = self._cart2cyl(x,y,z)
         if '-DVISCOSITY' in self.variables['FLAGS']:
             return np.ones_like(x)*float(self.variables['NU'])
         elif '-DALPHAVISCOSITY' in self.variables['FLAGS']:
@@ -558,24 +557,6 @@ class Mesh():
         else:
             rho = self.get_state_from_cart('gasdens',x,y,z)
         return rho
-
-    """
-    def get_gas_vel(self,x,y,z=0):
-        omega0 = float(self.variables['OMEGAFRAME'])
-        az,r,z = self._cart2cyl(x,y,z)
-        azdotprime = self.get_state_from_cart('gasvx',x,y,z)
-        azdot = azdotprime + r*omega0
-        rdot = self.get_state_from_cart('gasvy',x,y,z)
-        zdot = self.get_state_from_cart('gasvz',x,y,z)
-
-        xdot = np.cos(az)*rdot - r*np.sin(az)*azdot
-        ydot = np.sin(az)*rdot + r*np.cos(az)*azdot
-        xdotp = xdot - omega0*y
-        ydotp = ydot + omega0*x
-        zdotp = zdot
-
-        return xdotp,ydotp,zdotp
-    """
 
     def get_gas_vel(self,x,y,z=0):
         if self.variables['COORDINATES'] == 'cylindrical':

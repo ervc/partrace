@@ -13,12 +13,16 @@ class Particle(object):
         self.pos = np.array([x,y,z])
         self.pos0 = np.array([x,y,z])
 
-        # initialize velocity as same as gas
         r = np.sqrt(x*x + y*y)
-        vk = r*mesh.get_Omega(x,y,z)
+
+        # # initialize with keplerian velocity
+        # vk = r*mesh.get_Omega(x,y,z) - r*float(mesh.variables['OMEGAFRAME'])
+        # th = np.arctan2(y,x)
+        # self.vel = ([vk*np.cos(th),vk*np.sin(th),0])
+        # initialize velocity as same as gas
         vgx,vgy,vgz = mesh.get_gas_vel(x,y,z)
         self.vel = np.array([vgx,vgy,vgz])
-        # self.vel = np.zeros(3)
+        
         # self.vel[1]+=vk
         self.vel0 = np.array(self.vel)
 
@@ -35,6 +39,30 @@ class Particle(object):
         cs = self.mesh.get_soundspeed(*self.pos)
         return self.a*self.rho_s/(rho_g*cs)*om
 
+    def get_drag_coeff(self):
+        # drag coefficient Tanigawa et al. 2014 (Watanabe+Ida 1997)
+        nu = self.mesh.get_diffusivity(*self.pos)
+        vgx,vgy,vgz = self.mesh.get_gas_vel(*self.pos)
+        vgas = np.array([vgx,vgy,vgz])
+        vpar = np.array(self.vel)    
+        u = np.linalg.norm(vpar-vgas)
+        c = self.mesh.get_soundspeed(*self.pos)
+
+        # Reynolds number
+        R = 2*self.a*u/nu
+
+        # Mach number
+        M = u/c
+
+        # correction factor
+        w = 0.4
+        if R > 2e5: w=0.2
+
+        if u==0:
+            return 1e5
+        Cd = 1/(1/(24/R + 40/(10+R)) + 0.23*M) + (2.0-w)*M/(1.6 + M) + w
+        return Cd
+
     def get_dragAccel(self):
         """find the drag acceleration vector"""
         vgx,vgy,vgz = self.mesh.get_gas_vel(*self.pos)
@@ -44,11 +72,23 @@ class Particle(object):
         
         vtil = vgas - vpar
 
-        # om = disk.get_Omegak(r,z)
-        # st = self.get_stokes()
         rho_g = self.mesh.get_rho(*self.pos)
         cs = self.mesh.get_soundspeed(*self.pos)
         return rho_g*cs/self.a/self.rho_s*vtil
+
+    def get_newer_dragAccel(self):
+        vgx,vgy,vgz = self.mesh.get_gas_vel(*self.pos)
+        vgas = np.array([vgx,vgy,vgz])    
+        vpar = np.array(self.vel)     
+        Du = vpar - vgas
+        Dumag = np.linalg.norm(Du)
+        rhog = self.mesh.get_rho(*self.pos)
+
+        CD = self.get_drag_coeff()
+
+        adrag = -3/8 * CD * rhog/self.rho_s/self.a/self.a * Dumag * Du
+        return adrag
+
 
     def get_gravAccel(self):
         """find the acceleration due to the star gravity ndarray"""
@@ -90,16 +130,14 @@ class Particle(object):
 
     def total_accel(self,planet):
         tot = 0
-        drag = self.get_dragAccel()
+        drag = self.get_newer_dragAccel()
         tot += drag
         star = self.get_gravAccel()
         tot += star
-        plan = self.get_planetAccel(planet)
-        tot += plan
+        #plan = self.get_planetAccel(planet)
+        #tot += plan
         cent = self.get_centAccel()
         tot += cent
-
-
         return tot
 
     def get_stokes_grad(self):
@@ -150,11 +188,11 @@ class Particle(object):
         veff = np.array(self.vel)
         
         # vdiff = dD/dx
-        vdiff = self.get_vdiff()
-        veff += vdiff
+        #vdiff = self.get_vdiff()
+        #veff += vdiff
 
         # vrho = D/rho drho/dx
-        vrho = self.get_vrho()
-        veff += vrho
+        #vrho = self.get_vrho()
+        #veff += vrho
 
         return veff

@@ -96,7 +96,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
     tout = 0.01
     while status is None:
         message = rk.step()
-        add_diffusion(particle,rk)
+        #add_diffusion(particle,rk)
         particle.update_position(*rk.y[:3])
         particle.update_velocity(*rk.y[3:])
         ys.append(rk.y)
@@ -149,10 +149,7 @@ def integrate(t0,tf,particle,planet,savefile=False,**kwargs):
     """
     args = (particle,planet)
     x0,y0,z0 = particle.pos0
-    print('particle X0, V0')
-    print(x0,y0,z0)
     vx0,vy0,vz0 = particle.vel0
-    print(vx0,vy0,vz0)
     Y0 = np.array([x0,y0,z0,vx0,vy0,vz0])
     print('integrating')
     sol = solve_ode(fun,t0,Y0,tf,args=args,savefile=savefile,**kwargs)
