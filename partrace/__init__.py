@@ -13,7 +13,6 @@ __version__ = '1.0.1'
 # plt.rcParams['ytick.major.width'] = 1.5
 # plt.rcParams['ytick.minor.width'] = 1.
 
-from . import disk
 from . import constants
 from . import particle
 from . import mesh

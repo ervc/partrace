@@ -1,5 +1,6 @@
 """
-Useful analytic functions for a typical disk (largely deprecated)
+Useful analytic functions for a typical disk.
+Use of this library is deprecated.
 """
 
 
@@ -8,6 +9,10 @@ from .constants import *
 
 ALPHA = 1e-3
 PERTURBED = False
+
+print('Importing disk.py,'
+    +' use of this module is deprecated and will no longer be supported'
+    +' in version >= 2.0')
 
 def get_Tmid(r):
     '''Tmid powerlaw'''
