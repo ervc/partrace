@@ -110,6 +110,7 @@ class Particle(object):
 
         CD = self.get_drag_coeff()
 
+        ##### !!!! THIS HAS AN EXTRA FACTOR OF a BUT it WORKS !!!! #####
         adrag = -3/8 * CD * rhog/self.rho_s/self.a/self.a * Dumag * Du
         return adrag
 
