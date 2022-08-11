@@ -9,11 +9,11 @@ from .constants import *
 class Planet():
     """Planet embedded in mesh, information is read in from 
     planet{planet_no}.dat in mesh.fargodir
-    INPUTS
-    ------
+
+    Parameters
+    ----------
     mesh : Mesh
         Mesh object that planet is embedded in
-    OPTIONAL
     planet_no : int
         planet number to read in data from. planet is read in from
         mesh.fargodir/planet{planet_no}.dat. Mesh.n is used to get
@@ -23,6 +23,34 @@ class Planet():
         name of planet for tracking if there is more than one planet
         in mesh
         default: 'planet'
+
+    Attributes
+    ----------
+    mesh : Mesh
+        Mesh object that planet is embedded in
+    name : str
+        Name of planet for tracking
+    fname : str
+        Name of fargo output file with planet data
+    nout : int
+        output number for planet data
+    pos : ndarray (3,)
+        Cartesian position of planet
+    vel : ndarray (3,)
+        Cartesian velocity of planet
+    mass : float
+        Mass of planet
+    time : float
+        Time of output in seconds
+    omegaframe : float
+        Rotation rate of Mesh
+    hill : float
+        Hill radius size
+    bondi : float
+        bondi radius size
+    envelope : float
+        size of planetary accretion envelope
+
     """
     def __init__(self, mesh, planet_no=0, name='planet'):
         self.mesh = mesh

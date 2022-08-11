@@ -6,15 +6,17 @@ import numpy as np
 
 class Solver():
     """Helper class for ODE solution
-    ATTRIBUTES
+
+    Attributes
+    ----------
     status : int
         status of solver. 
-            -2 = other
-            -1 = fail
-             0 = success
-             1 = particle reached inner edge of mesh
-             2 = particle reached outer edge of mesh
-             3 = particle was accreted onto planet
+            |  -2 = other
+            |  -1 = fail
+            |  0 = success
+            |  1 = particle reached inner edge of mesh
+            |  2 = particle reached outer edge of mesh
+            |  3 = particle was accreted onto planet
     times : array (nout,)
         long array of output times from solver
     history : array (nout,y.shape)
@@ -30,7 +32,8 @@ class Solver():
 
 
 def fun(t,Y,particle,planet):
-    """time derivative of 6d pos vector"""
+    """Time derivative at time t of 6d pos vector Y.
+    """
     particle.update_position(*Y[:3])
     particle.update_velocity(*Y[3:])
     vx,vy,vz = particle.get_veff()
@@ -56,8 +59,8 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
     practice to scipy.integrate.solve_ode, but with added diffusion
     in solver.
 
-    INPUTS
-    ------
+    Parameters
+    ----------
     fun : function
         time derivative of y, of form fun(t,y,*args) = d/dt y(t)
     t0 : float
@@ -66,7 +69,6 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
         initial conditions
     tf : float
         end of integration. sets direction of integral
-    OPTIONAL
     args : tuple
         args to pass to fun(). If only one arg, format like args=(arg,)
     kwargs : optional keyword arguments to pass to RK45 solver. 
@@ -75,9 +77,9 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
             rtol, atol : float or array_like
             vectorized : bool
 
-    RETURNS
+    Return
     -------
-    Solver obj
+    Solver object
     """
     from scipy.integrate import RK45
     particle,planet = args
@@ -147,15 +149,14 @@ def integrate(t0,tf,particle,planet = None,savefile=None,**kwargs):
     Do the integration for particle in a mesh including a planet
     from time t0 -> tf. Calls the function solve_ode()
 
-    INPUTS
-    ------
+    Parameters
+    ----------
     t0 : float
         start time of integration
     tf : float
         end time of integration
     particle : Particle
         particle class that will be integrated in time
-    OPTIONAL
     planet : Planet
         Planet to consider if there is one in the mesh
         default: None
@@ -168,6 +169,10 @@ def integrate(t0,tf,particle,planet = None,savefile=None,**kwargs):
             rtol, atol : float or array_like
             vectorized : bool
 
+    Returns
+    -------
+    Solver object
+
     """
     args = (particle,planet)
     x0,y0,z0 = particle.pos0
@@ -178,7 +183,7 @@ def integrate(t0,tf,particle,planet = None,savefile=None,**kwargs):
     return sol
 
 def one_step(particle,planet,**kwargs):
-    """Debugging/testing function to take only one step at a time"""
+    """Debugging function to take only one step at a time."""
     x0,y0,z0 = particle.pos0
     print('particle X0, V0')
     print(x0,y0,z0)

@@ -13,11 +13,10 @@ class Mesh():
     """Fargo domain mesh. Contains the domain, density, energy 
     and velocity mesh.
 
-    INPUTS
-    ------
+    Parameters
+    ----------
     fargodir : str
         directory where fargo output data can be found
-    OPTIONAL
     states : str, list
         list of states to read in from fargooutput. If states=='all',
         then states of ['gasdens','gasvx','gasvy','gasvz','gasenergy']
@@ -26,14 +25,47 @@ class Mesh():
     n : int
         which number output to read. i.e. gas density will be read in
         fargodir/gasdens{n}.dat. If n==-1, then the last output will be
-        read. Values are saved in self.n dictionary for each state.
-        Ideally, all n values are the same and this is redundant, but if
-        n = -1 is used, this can check that all the data is read in from
-        the same output.
+        read. Values are saved in :py:attr:`Mesh.n` dictionary for 
+        each state.
         default: -1
     quiet : bool
         print confirmation messages to stdout
         default: False
+
+    Attributes
+    ----------
+    fargodir : str
+        directory where fargo output data can be found.
+    ndim : int
+        Number of dimensions of fargo data.
+    quiet : bool
+        If messages are suppressed.
+    state : dict
+        Dictionary containing (nz,ny,nx) ndarray of scalar variables. 
+        These are read from the fargo output data.
+    interpolators : dict
+        Dictionary containing scipy interpolator objects for each of the
+        state variables in :py:attr:`state`.
+    n : dictionary
+        Dictionary containing int of output number for each state.
+        Ideally, all n values are the same and this is redundant, but if
+        n = -1 is used, this can check that all the data is read in from
+        the same output.
+    n{x,y,z} : int
+        Number of fargo cells in {x,y,z} where
+        |   if coords == cylindrical:
+        |     "x" = azimuth
+        |     "y" = radius
+        |     "z" = z
+        |  if coords == spherical:
+        |     "x" = azimuth
+        |     "y" = radius
+        |     "z" = polar
+    {x,y,z}centers : ndarray
+        Array of length {nx,ny,nz} containing the cell centers stored
+        in coordinate system of FARGO.
+    {x,y,z}edges : ndarray
+        Array of length {nx+1,ny+1,nz+1} containing fargo cell edges.
     """
     def __init__(self, fargodir, states='all', n=-1, quiet=False):
         self.fargodir = fargodir
@@ -135,27 +167,6 @@ class Mesh():
         """Reads in domain.dat files and creates arrays of cell edge 
         and cell center values. Also determines dimensionality of
         output.
-
-        Creates 1D arrays of edges and centers in default code output.
-        Shapes:
-          xedges = (nx+1,)
-          yedges = (ny+1,)
-          zedges = (nz+1,)
-          xcenters = (nx,)
-          ycenters = (ny,)
-          zcenters = (nz,)
-        Note: nz = 1 if ndim == 2
-
-        where:
-          if coords == cylindrical:
-            "x" = azimuth
-            "y" = radius
-            "z" = z
-          if coords == spherical:
-            "x" = azimuth
-            "y" = radius
-            "z" = polar
-    
         """
         self._readin_edges(ghostcells=ghostcells)
 

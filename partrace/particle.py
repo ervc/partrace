@@ -11,20 +11,37 @@ DEBUG = False
 class Particle(object):
     """A particle that can move through the disk. Particles are
     initialized with velocity equal to the gas around them.
-    INPUTS
-    ------
+
+    Parameters
+    ----------
     mesh : Mesh
         partrace mesh object that contains disk information for the
         particle to move through
     x, y, z : float
         starting location for the particle
-    OPTIONAL
     a : float
         particle size in cm
         default: 0.01 cm
     rho_s : float
         particle density in g cm-3
         default: 2.0 g cm-3
+
+    Attributes
+    ----------
+    a : float
+        particle size in cm
+    rho_s : float
+        particle density in g cm-3
+    mesh : Mesh
+        Mesh object the particle is embedded in
+    pos : ndarray (3,)
+        current cartesian position of particle
+    vel : ndarray (3,)
+        current cartesian velocity of particle
+    pos0 : ndarray (3,)
+        initial cartesian position of particle
+    vel0 : ndarray (3,)
+        initial cartesian velocity of particle
     """
     def __init__(self,mesh,x,y,z,a=0.01,rho_s=2):
         self.a = a
@@ -160,7 +177,7 @@ class Particle(object):
         tot += drag
         star = self.get_gravAccel()
         tot += star
-        if planet is not None:
+        #if planet is not None:
             #plan = self.get_planetAccel(planet)
             #tot += plan
         cent = self.get_centAccel()
