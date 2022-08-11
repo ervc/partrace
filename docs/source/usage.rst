@@ -40,7 +40,7 @@ In python, import standard libraries and partrace and define a path variable to 
     import partrace as pt
     fargodir = 'exampleout/fargo_rescale' #for example
 
-Next, create a :py:class:`Mesh <partrace.mesh.Mesh>` from the fargo output, then create a :py:class:`Planet <partrace.planet.Planet>` and :py:class:`Particle <partrace.particle.Particle>` within the :py:class:`Mesh <partrace.mesh.Mesh>`. Helpful constants are stored in the :py:mod:`partrace.constants` module
+Next, create a :py:class:`Mesh <partrace.mesh.Mesh>` from the fargo output, then create a :py:class:`Planet <partrace.planet.Planet>` and :py:class:`Particle <partrace.particle.Particle>` within the :py:class:`Mesh <partrace.mesh.Mesh>`. Helpful constants are stored in the :py:mod:`partrace.constants` module.
 
 .. code-block:: python
 
