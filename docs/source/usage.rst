@@ -1,7 +1,7 @@
 Usage
 =====
 
-This is Partrace! See the :doc:`modules` for a quick overview of the different modules and classes available to use.
+This is Partrace! See the :doc:`modules` API for a full overview of the different modules and classes available to use.
 
 Installation
 ------------
