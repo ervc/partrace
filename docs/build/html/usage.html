@@ -1,0 +1,207 @@
+
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>Usage &#8212; partrace 1.0.0 documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/nature.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Modules" href="modules.html" />
+    <link rel="prev" title="Documentation" href="index.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="modules.html" title="Modules"
+             accesskey="N">next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Documentation"
+             accesskey="P">previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">partrace 1.0.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Usage</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="usage">
+<h1>Usage<a class="headerlink" href="#usage" title="Permalink to this heading">¶</a></h1>
+<p>This is Partrace! See the <a class="reference internal" href="modules.html"><span class="doc">Modules</span></a> API for a full overview of the different modules and classes available to use.</p>
+<section id="installation">
+<h2>Installation<a class="headerlink" href="#installation" title="Permalink to this heading">¶</a></h2>
+<p>It is recommended to first create a virtual enviornment using python</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>python -m venv ptenv
+<span class="gp">$ </span><span class="nb">source</span> ptenv/bin/activate
+</pre></div>
+</div>
+<p>Or anaconda enviornment with dependencies</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp">$ </span>conda create --name ptenv scipy matplotlib numpy
+<span class="gp">$ </span>conda activate ptenv
+</pre></div>
+</div>
+<p>Copy the base partrace directory from github. You can install the partrace package locally to use in another directory, although this is optional if you work exclusively in the partrace parent directory.</p>
+<div class="highlight-console notranslate"><div class="highlight"><pre><span></span><span class="gp gp-VirtualEnv">(ptenv)</span> <span class="gp">$ </span>pip install .
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The standard library <code class="xref py py-mod docutils literal notranslate"><span class="pre">setuptools</span></code> is required to install using pip.</p>
+</div>
+</section>
+<section id="quick-start">
+<h2>Quick Start<a class="headerlink" href="#quick-start" title="Permalink to this heading">¶</a></h2>
+<p>In python, import standard libraries and partrace and define a path variable to your FARGO3D output.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+
+<span class="kn">import</span> <span class="nn">partrace</span> <span class="k">as</span> <span class="nn">pt</span>
+<span class="n">fargodir</span> <span class="o">=</span> <span class="s1">&#39;exampleout/fargo_rescale&#39;</span> <span class="c1">#for example</span>
+</pre></div>
+</div>
+<p>Next, create a <a class="reference internal" href="partrace.html#partrace.mesh.Mesh" title="partrace.mesh.Mesh"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mesh</span></code></a> from the fargo output, then create a <a class="reference internal" href="partrace.html#partrace.planet.Planet" title="partrace.planet.Planet"><code class="xref py py-class docutils literal notranslate"><span class="pre">Planet</span></code></a> and <a class="reference internal" href="partrace.html#partrace.particle.Particle" title="partrace.particle.Particle"><code class="xref py py-class docutils literal notranslate"><span class="pre">Particle</span></code></a> within the <a class="reference internal" href="partrace.html#partrace.mesh.Mesh" title="partrace.mesh.Mesh"><code class="xref py py-class docutils literal notranslate"><span class="pre">Mesh</span></code></a>. Helpful constants are stored in the <a class="reference internal" href="partrace.html#module-partrace.constants" title="partrace.constants"><code class="xref py py-mod docutils literal notranslate"><span class="pre">partrace.constants</span></code></a> module.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">mesh</span> <span class="o">=</span> <span class="n">pt</span><span class="o">.</span><span class="n">create_mesh</span><span class="p">(</span><span class="n">fargodir</span><span class="p">)</span>
+
+<span class="n">planet</span> <span class="o">=</span> <span class="n">pt</span><span class="o">.</span><span class="n">create_planet</span><span class="p">(</span><span class="n">mesh</span><span class="p">)</span>
+
+<span class="n">x0</span> <span class="o">=</span> <span class="mi">10</span><span class="o">*</span><span class="n">pt</span><span class="o">.</span><span class="n">const</span><span class="o">.</span><span class="n">AU</span>
+<span class="n">y0</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">z0</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">particle</span> <span class="o">=</span> <span class="n">pt</span><span class="o">.</span><span class="n">create_particle</span><span class="p">(</span><span class="n">mesh</span><span class="p">,</span><span class="n">x0</span><span class="p">,</span><span class="n">y0</span><span class="p">,</span><span class="n">z0</span><span class="p">,</span><span class="n">a</span><span class="o">=</span><span class="mi">100</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Finally, set up the solver parameters and integrate the particle!</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">t0</span> <span class="o">=</span> <span class="mi">0</span>
+<span class="n">tf</span> <span class="o">=</span> <span class="mf">1e2</span><span class="o">*</span><span class="n">const</span><span class="o">.</span><span class="n">YR</span>
+<span class="n">max_step</span> <span class="o">=</span> <span class="mi">1</span><span class="o">/</span><span class="mi">50</span><span class="o">*</span><span class="n">pt</span><span class="o">.</span><span class="n">const</span><span class="o">.</span><span class="n">TWOPI</span><span class="o">/</span><span class="n">mesh</span><span class="o">.</span><span class="n">get_Omega</span><span class="p">(</span><span class="n">minr</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span>
+
+<span class="c1"># get the inner edge of mesh and maximum velocity for atol and rtol</span>
+<span class="n">minr</span> <span class="o">=</span> <span class="n">mesh</span><span class="o">.</span><span class="n">yedges</span><span class="o">.</span><span class="n">min</span><span class="p">()</span>
+<span class="n">maxv</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">nanmax</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">abs</span><span class="p">(</span><span class="n">mesh</span><span class="o">.</span><span class="n">state</span><span class="p">[</span><span class="s1">&#39;gasvx&#39;</span><span class="p">]))</span>
+<span class="c1"># here we define atol to be a ndarray to define different atols for</span>
+<span class="c1"># the position and velocity</span>
+<span class="n">atol</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">(</span><span class="mi">6</span><span class="p">)</span>
+<span class="n">atol</span><span class="p">[:</span><span class="mi">3</span><span class="p">]</span> <span class="o">+=</span> <span class="mf">1e-3</span><span class="o">*</span><span class="n">minr</span>  <span class="c1"># xtol is within 1e-3 of smallest r</span>
+<span class="n">atol</span><span class="p">[</span><span class="mi">3</span><span class="p">:]</span> <span class="o">+=</span> <span class="mf">1e-3</span><span class="o">*</span><span class="n">maxv</span>  <span class="c1"># vtol is within 1e-3 of largest velocity</span>
+<span class="n">rtol</span> <span class="o">=</span> <span class="mf">1e-6</span>
+
+<span class="n">sol</span> <span class="o">=</span> <span class="n">integrate</span><span class="p">(</span><span class="n">t0</span><span class="p">,</span><span class="n">tf</span><span class="p">,</span><span class="n">p</span><span class="p">,</span><span class="n">planet</span><span class="p">,</span><span class="n">savefile</span><span class="o">=</span><span class="s1">&#39;quickstart_out.npz&#39;</span><span class="p">,</span>
+                <span class="n">max_step</span><span class="o">=</span><span class="n">max_step</span><span class="p">,</span><span class="n">atol</span><span class="o">=</span><span class="n">atol</span><span class="p">,</span><span class="n">rtol</span><span class="o">=</span><span class="n">rtol</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>You can plot the results by getting the <a class="reference internal" href="partrace.html#partrace.integrate.Solver.history" title="partrace.integrate.Solver.history"><code class="xref py py-attr docutils literal notranslate"><span class="pre">history</span></code></a> attribute from the <a class="reference internal" href="partrace.html#partrace.integrate.Solver" title="partrace.integrate.Solver"><code class="xref py py-class docutils literal notranslate"><span class="pre">solver</span></code></a>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># default output is (nout,6), use .T to unpack into more useful variables</span>
+<span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">z</span><span class="p">,</span><span class="n">vx</span><span class="p">,</span><span class="n">vy</span><span class="p">,</span><span class="n">vz</span> <span class="o">=</span> <span class="n">sol</span><span class="o">.</span><span class="n">history</span><span class="o">.</span><span class="n">T</span>
+<span class="n">times</span> <span class="o">=</span> <span class="n">sol</span><span class="o">.</span><span class="n">times</span>
+</pre></div>
+</div>
+<p>Or if the results are saved, extract the ndarrays from the npz file</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">ptout</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s1">&#39;quickstart_out.npz&#39;</span><span class="p">)</span>
+<span class="n">x</span><span class="p">,</span><span class="n">y</span><span class="p">,</span><span class="n">z</span><span class="p">,</span><span class="n">vx</span><span class="p">,</span><span class="n">vy</span><span class="p">,</span><span class="n">vz</span> <span class="o">=</span> <span class="n">ptout</span><span class="p">[</span><span class="s1">&#39;history&#39;</span><span class="p">]</span><span class="o">.</span><span class="n">T</span>
+<span class="n">times</span> <span class="o">=</span> <span class="n">ptout</span><span class="p">[</span><span class="s1">&#39;times&#39;</span><span class="p">]</span>
+</pre></div>
+</div>
+<p>If everything ran correctly, you should see the particle drifting inward!</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">r</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">sqrt</span><span class="p">(</span><span class="n">x</span><span class="o">*</span><span class="n">x</span> <span class="o">+</span> <span class="n">y</span><span class="o">*</span><span class="n">y</span><span class="p">)</span>
+<span class="n">fig</span><span class="p">,</span><span class="n">ax</span> <span class="o">=</span> <span class="n">plt</span><span class="o">.</span><span class="n">subplots</span><span class="p">()</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">plot</span><span class="p">(</span><span class="n">times</span><span class="p">,</span><span class="n">r</span><span class="p">)</span>
+<span class="n">ax</span><span class="o">.</span><span class="n">set</span><span class="p">(</span><span class="n">xlabel</span><span class="o">=</span><span class="s1">&#39;time [sec]&#39;</span><span class="p">,</span><span class="n">ylabel</span><span class="o">=</span><span class="s1">&#39;radius [r]&#39;</span><span class="p">)</span>
+<span class="n">plt</span><span class="o">.</span><span class="n">show</span><span class="p">()</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">Usage</a><ul>
+<li><a class="reference internal" href="#installation">Installation</a></li>
+<li><a class="reference internal" href="#quick-start">Quick Start</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div>
+    <h4>Previous topic</h4>
+    <p class="topless"><a href="index.html"
+                          title="previous chapter">Documentation</a></p>
+  </div>
+  <div>
+    <h4>Next topic</h4>
+    <p class="topless"><a href="modules.html"
+                          title="next chapter">Modules</a></p>
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/usage.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="right" >
+          <a href="modules.html" title="Modules"
+             >next</a> |</li>
+        <li class="right" >
+          <a href="index.html" title="Documentation"
+             >previous</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">partrace 1.0.0 documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">Usage</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2022, Eric Van Clepper.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 5.0.2.
+    </div>
+  </body>
+</html>
