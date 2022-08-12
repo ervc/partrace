@@ -17,14 +17,18 @@ Or anaconda enviornment with dependencies
 
 .. code-block:: console
 
-    $ conda create --name ptenv scipy
+    $ conda create --name ptenv scipy matplotlib numpy
     $ conda activate ptenv
 
-Copy the base partrace directory from github. Change directories to the base directory and install locally.
+Copy the base partrace directory from github. You can install the partrace package locally to use in another directory, although this is optional if you work exclusively in the partrace parent directory.
 
 .. code-block:: console
 
     (ptenv) $ pip install .
+
+.. note::
+    
+    The standard library :py:mod:`setuptools` is required to install using pip.
 
 
 Quick Start
