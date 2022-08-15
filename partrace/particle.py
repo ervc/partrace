@@ -98,10 +98,28 @@ class Particle(object):
         w = 0.4
         if R > 2e5: w=0.2
 
+        # avoid division by zero
         if u==0:
             return 1e5
+            
         Cd = 1/(1/(24/R + 40/(10+R)) + 0.23*M) + (2.0-w)*M/(1.6 + M) + w
         return Cd
+
+    def get_newer_dragAccel(self):
+        """Get stokes drag acceleration vector. 
+        (Tanigawa et al. 2014)"""
+        vgx,vgy,vgz = self.mesh.get_gas_vel(*self.pos)
+        vgas = np.array([vgx,vgy,vgz])    
+        vpar = np.array(self.vel)     
+        Du = vpar - vgas
+        Dumag = np.linalg.norm(Du)
+        rhog = self.mesh.get_rho(*self.pos)
+
+        CD = self.get_drag_coeff()
+
+        ##### !!!! THIS HAS AN EXTRA FACTOR OF a BUT it WORKS !!!! #####
+        adrag = -3/8 * CD * rhog/self.rho_s/self.a/self.a * Dumag * Du
+        return adrag
 
     def get_dragAccel(self):
         """find the epstein drag acceleration vector"""
@@ -115,21 +133,6 @@ class Particle(object):
         rho_g = self.mesh.get_rho(*self.pos)
         cs = self.mesh.get_soundspeed(*self.pos)
         return rho_g*cs/self.a/self.rho_s*vtil
-
-    def get_newer_dragAccel(self):
-        """Get stokes drag acceleration vector"""
-        vgx,vgy,vgz = self.mesh.get_gas_vel(*self.pos)
-        vgas = np.array([vgx,vgy,vgz])    
-        vpar = np.array(self.vel)     
-        Du = vpar - vgas
-        Dumag = np.linalg.norm(Du)
-        rhog = self.mesh.get_rho(*self.pos)
-
-        CD = self.get_drag_coeff()
-
-        ##### !!!! THIS HAS AN EXTRA FACTOR OF a BUT it WORKS !!!! #####
-        adrag = -3/8 * CD * rhog/self.rho_s/self.a/self.a * Dumag * Du
-        return adrag
 
 
     def get_gravAccel(self):
@@ -177,9 +180,9 @@ class Particle(object):
         tot += drag
         star = self.get_gravAccel()
         tot += star
-        #if planet is not None:
-            #plan = self.get_planetAccel(planet)
-            #tot += plan
+        if planet is not None:
+            plan = self.get_planetAccel(planet)
+            tot += plan
         cent = self.get_centAccel()
         tot += cent
         return tot
