@@ -140,8 +140,14 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
     times = np.array(ts)
     ## use np.stack to convert list of arrays to 2d array
     history = np.stack(ys)
+    # remove the last output if solver failed
+    # to remove repeated output
+    if status == -1:
+        times = times[:-1]
+        history = history[:-1]
     if savefile:
         np.savez(savefile,times=times,history=history)
+        print(f'saved to {savefile}')
     return Solver(status,times,history,rk)
 
 def integrate(t0,tf,particle,planet = None,savefile=None,**kwargs):

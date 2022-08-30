@@ -53,14 +53,14 @@ class Particle(object):
 
         r = np.sqrt(x*x + y*y)
 
-        # # initialize with keplerian velocity
-        # vk = r*mesh.get_Omega(x,y,z) - r*float(mesh.variables['OMEGAFRAME'])
-        # th = np.arctan2(y,x)
-        # self.vel = ([vk*np.cos(th),vk*np.sin(th),0])
+        # initialize with keplerian velocity
+        vk = r*mesh.get_Omega(x,y,z) - r*float(mesh.variables['OMEGAFRAME'])
+        th = np.arctan2(y,x)
+        self.vel = ([-vk*np.sin(th),vk*np.cos(th),0])
 
-        # initialize velocity as same as gas
-        vgx,vgy,vgz = mesh.get_gas_vel(x,y,z)
-        self.vel = np.array([vgx,vgy,vgz])
+        # # initialize velocity as same as gas
+        # vgx,vgy,vgz = mesh.get_gas_vel(x,y,z)
+        # self.vel = np.array([vgx,vgy,vgz])
         
         self.vel0 = np.array(self.vel)
 
@@ -101,7 +101,7 @@ class Particle(object):
         # avoid division by zero
         if u==0:
             return 1e5
-            
+
         Cd = 1/(1/(24/R + 40/(10+R)) + 0.23*M) + (2.0-w)*M/(1.6 + M) + w
         return Cd
 
@@ -118,7 +118,7 @@ class Particle(object):
         CD = self.get_drag_coeff()
 
         ##### !!!! THIS HAS AN EXTRA FACTOR OF a BUT it WORKS !!!! #####
-        adrag = -3/8 * CD * rhog/self.rho_s/self.a/self.a * Dumag * Du
+        adrag = -3/8 * CD * rhog/self.rho_s/self.a * Dumag * Du
         return adrag
 
     def get_dragAccel(self):
@@ -128,21 +128,40 @@ class Particle(object):
         
         vpar = np.array(self.vel)
         
-        vtil = vgas - vpar
+        vtil = vpar-vgas
 
         rho_g = self.mesh.get_rho(*self.pos)
         cs = self.mesh.get_soundspeed(*self.pos)
-        return rho_g*cs/self.a/self.rho_s*vtil
+        return -rho_g*cs/self.a/self.rho_s*vtil
 
 
-    def get_gravAccel(self):
+    def get_gravAccel(self,planet):
+        """Find the total acceleration due to gravity, account for
+        different stellar movement.
+        """
+        if planet is not None:
+            Xp = planet.pos
+            Mp = planet.mass
+            Ms = float(self.mesh.variables['MSTAR'])
+            # 0 = (XpMp + XsMs)/(Ms+Mp)
+            # Xs = -XpMp/Ms
+            Xs = -Xp * Mp/Ms
+        else:
+            Xs = np.zeros(3)
+
+        astar = self.get_starAccel()
+        aplan = self.get_planetAccel(planet)
+
+        return astar + aplan
+
+    def get_starAccel(self):
         """find the acceleration vector due to the star gravity"""
         G = float(self.mesh.variables['G'])
         MSTAR = float(self.mesh.variables['MSTAR'])
         GM = G*MSTAR
         X = self.pos
         dstar = np.linalg.norm(X)
-        return -GM/dstar**3 * X
+        return -GM/dstar**3 * (X)
 
     def get_planetAccel(self,planet):
         """grav acceleration vector due to planet"""
@@ -176,13 +195,10 @@ class Particle(object):
     def total_accel(self,planet):
         """Get total acceleration acting on the particle"""
         tot = 0
-        drag = self.get_newer_dragAccel()
+        drag = self.get_dragAccel()
         tot += drag
-        star = self.get_gravAccel()
-        tot += star
-        if planet is not None:
-            plan = self.get_planetAccel(planet)
-            tot += plan
+        grav = self.get_gravAccel(planet)
+        tot += grav
         cent = self.get_centAccel()
         tot += cent
         return tot
