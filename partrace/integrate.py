@@ -134,7 +134,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
                 status = 3
         if rk.t/tf > n*tout:
             n+=1
-            print(rk.t/tf,r/minr,rk.step_size/maxh,rk.y)
+            print(rk.t/tf,r/minr,rk.step_size/maxh,rk.y,'\n',flush=True)
     print(f'Solver stopped, status = {statii[status]}')
     # convert to arrays
     times = np.array(ts)
