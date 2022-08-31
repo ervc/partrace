@@ -225,7 +225,7 @@ class Particle(object):
         dStdy = (Sty-St0)/dy
         if self.mesh.ndim == 3:
             dz = 0.01*r*float(self.mesh.variables['ASPECTRATIO'])
-            Stz = self.get_diffusivity(z,y,z+dz)
+            Stz = self.mesh.get_diffusivity(z,y,z+dz)
             dStdz = (Stz-St0)/dz
         else:
             dStdz = np.zeros_like(x)
