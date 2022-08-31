@@ -110,7 +110,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
     tout = 0.01
     while status is None:
         message = rk.step()
-        #add_diffusion(particle,rk)
+        add_diffusion(particle,rk)
         particle.update_position(*rk.y[:3])
         particle.update_velocity(*rk.y[3:])
         ys.append(rk.y)
