@@ -5,7 +5,7 @@ import partrace as pt
 from partrace import constants as const
 
 fargodir = 'fargoout/fargo_mid'
-partdir = 'particleout/a10_nodiff_test'
+partdir = 'particleout/a10_yesdiff_test'
 npart = 16
 
 def partname(n):
