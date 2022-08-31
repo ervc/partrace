@@ -263,11 +263,11 @@ class Particle(object):
         veff = np.array(self.vel)
         
         # vdiff = dD/dx
-        #vdiff = self.get_vdiff()
-        #veff += vdiff
+        vdiff = self.get_vdiff()
+        veff += vdiff
 
         # vrho = D/rho drho/dx
-        #vrho = self.get_vrho()
-        #veff += vrho
+        vrho = self.get_vrho()
+        veff += vrho
 
         return veff
