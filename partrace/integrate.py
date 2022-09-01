@@ -31,12 +31,15 @@ class Solver():
         self.sol = sol
 
 
-def fun(t,Y,particle,planet):
+def fun(t,Y,particle,planet,diffusion=True):
     """Time derivative at time t of 6d pos vector Y.
     """
     particle.update_position(*Y[:3])
     particle.update_velocity(*Y[3:])
-    vx,vy,vz = particle.get_veff()
+    if diffusion:
+        vx,vy,vz = particle.get_veff()
+    else:
+        vx,vy,vz = particle.vel
     ax,ay,az = particle.total_accel(planet)  
     return np.array([vx,vy,vz,ax,ay,az])
 
@@ -54,7 +57,7 @@ def add_diffusion(particle,rk):
 
 
 
-def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
+def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     """ODE solver including random diffusive movement. Similar in
     practice to scipy.integrate.solve_ode, but with added diffusion
     in solver.
@@ -86,9 +89,9 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
     # define new function to allow args to be passed into solver
     def f(t,y):
         if args is not None:
-            return fun(t,y,*args)
+            return fun(t,y,*args,diffusion)
         else:
-            return fun(t,y)
+            return fun(t,y,diffusion)
 
     # create solver and set up returnables
     kw = kwargs
@@ -110,7 +113,8 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
     tout = 0.01
     while status is None:
         message = rk.step()
-        add_diffusion(particle,rk)
+        if diffusion:
+            add_diffusion(particle,rk)
         particle.update_position(*rk.y[:3])
         particle.update_velocity(*rk.y[3:])
         ys.append(rk.y)
@@ -135,6 +139,10 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
         if rk.t/tf > n*tout:
             n+=1
             print(rk.t/tf,r/minr,rk.step_size/maxh,rk.y,'\n',flush=True)
+            if savefile:
+                times = np.array(ts)
+                history = np.stack(ys)
+                np.savez(savefile,times=times,history=history)
     print(f'Solver stopped, status = {statii[status]}')
     # convert to arrays
     times = np.array(ts)
@@ -150,7 +158,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,**kwargs):
         print(f'saved to {savefile}')
     return Solver(status,times,history,rk)
 
-def integrate(t0,tf,particle,planet = None,savefile=None,**kwargs):
+def integrate(t0,tf,particle,planet = None,savefile=None,diffusion=True,**kwargs):
     """
     Do the integration for particle in a mesh including a planet
     from time t0 -> tf. Calls the function solve_ode()
@@ -185,7 +193,7 @@ def integrate(t0,tf,particle,planet = None,savefile=None,**kwargs):
     vx0,vy0,vz0 = particle.vel0
     Y0 = np.array([x0,y0,z0,vx0,vy0,vz0])
     print('integrating')
-    sol = solve_ode(fun,t0,Y0,tf,args=args,savefile=savefile,**kwargs)
+    sol = solve_ode(fun,t0,Y0,tf,args=args,savefile=savefile,diffusion=diffusion,**kwargs)
     return sol
 
 def one_step(particle,planet,**kwargs):
