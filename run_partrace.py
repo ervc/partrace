@@ -10,15 +10,19 @@ import partrace as pt
 import partrace.constants as const
 from partrace.integrate import integrate
 
+FARGODIR = 'fargoout/fargo_mid'
+OUTPUTDIR = 'particleout/new_test'
+
 def main():
     # global
-    fargodir = 'fargoout/fargo_mid'
+    fargodir = FARGODIR
     n = -1
-    npart = 16 # number of particles
+    npart = 1 # number of particles
 
     # create mesh
     mesh = pt.create_mesh(fargodir,n=n)
     minr = mesh.yedges.min()
+    print('minr = ',minr)
     maxr = mesh.yedges.max()
     minv = np.nanmin(np.abs(mesh.state['gasvx']))
     maxv = np.nanmax(np.abs(mesh.state['gasvx']))
@@ -32,6 +36,7 @@ def main():
     t0 = 0
     tf = 1e2*const.YR
     maxdt = 1/50*const.TWOPI/mesh.get_Omega(minr,0,0)
+    print('maxdt = ',maxdt)
     atol = np.zeros(6)
     atol[:3] += 1e-3*minr  # xtol is within 1e-3 of smallest r
     atol[3:] += 1e-3*maxv  # vtol is within 1e-3 of largest velocity
@@ -98,7 +103,11 @@ def helper_func(args):
     x0,y0,z0 = random_loc_helper(rlargs,n)
     mesh,a,rho_s = pargs
     p = pt.create_particle(mesh,x0,y0,z0,a,rho_s)
-    savefile = f'particles/history_{n}_a{a}_newdrag_nodiff.npz'
+    savefile = f'{OUTPUTDIR}/history_{n}.npz'
+    import os
+    import subprocess
+    if not os.path.exists(OUTPUTDIR):
+        subprocess.run(['mkdir',OUTPUTDIR])
     t0,tf,planet,kw = intargs
     sol = integrate(t0,tf,p,planet,savefile=savefile,**kw)
     return sol.status
