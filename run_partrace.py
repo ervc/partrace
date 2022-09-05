@@ -10,6 +10,7 @@ import partrace as pt
 import partrace.constants as const
 from partrace.integrate import integrate
 
+DIFFUSION = False
 FARGODIR = 'fargoout/fargo_mid'
 OUTPUTDIR = 'particleout/new_test'
 
@@ -29,12 +30,12 @@ def main():
     n = mesh.n['gasdens']
 
     # readin planet
-    # planet = pt.create_planet(mesh,0,'Jupiter')
-    planet = None
+    planet = pt.create_planet(mesh,0,'Jupiter')
+    # planet = None
 
     # set up solver params
     t0 = 0
-    tf = 1e2*const.YR
+    tf = 5e2*const.YR
     maxdt = 1/50*const.TWOPI/mesh.get_Omega(minr,0,0)
     print('maxdt = ',maxdt)
     atol = np.zeros(6)
@@ -109,7 +110,7 @@ def helper_func(args):
     if not os.path.exists(OUTPUTDIR):
         subprocess.run(['mkdir',OUTPUTDIR])
     t0,tf,planet,kw = intargs
-    sol = integrate(t0,tf,p,planet,savefile=savefile,**kw)
+    sol = integrate(t0,tf,p,planet,savefile=savefile,diffusion=DIFFUSION,**kw)
     return sol.status
 
 def count_success(allsols):
