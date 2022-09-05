@@ -493,9 +493,9 @@ class Mesh():
         if self.ndim == 2:
             # need to convert surface density to midplane density
             rho = self.get_state_from_cart('gasdens',x,y,z)
-            # sigma = self.get_state_from_cart('gasdens',x,y,z)
-            # H = self.get_scaleheight(x,y,z)
-            # rho = sigma/np.sqrt(2*PI)/H
+            #sigma = self.get_state_from_cart('gasdens',x,y,z)
+            #H = self.get_scaleheight(x,y,z)
+            #rho = sigma/np.sqrt(2*PI)/H
         else:
             rho = self.get_state_from_cart('gasdens',x,y,z)
         return rho
