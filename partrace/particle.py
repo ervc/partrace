@@ -124,12 +124,13 @@ class Particle(object):
     def get_dragAccel(self):
         """find the epstein drag acceleration vector"""
         vgx,vgy,vgz = self.mesh.get_gas_vel(*self.pos)
+        vgx = vgx[0]
+        vgy = vgy[0]
+        vgz = vgz[0]
         vgas = np.array([vgx,vgy,vgz])
-        
         vpar = np.array(self.vel)
         
         vtil = vpar-vgas
-
         rho_g = self.mesh.get_rho(*self.pos)
         cs = self.mesh.get_soundspeed(*self.pos)
         return -rho_g*cs/self.a/self.rho_s*vtil
@@ -149,19 +150,19 @@ class Particle(object):
         else:
             Xs = np.zeros(3)
 
-        astar = self.get_starAccel()
+        astar = self.get_starAccel(Xs)
         aplan = self.get_planetAccel(planet)
 
         return astar + aplan
 
-    def get_starAccel(self):
+    def get_starAccel(self,Xs=0):
         """find the acceleration vector due to the star gravity"""
         G = float(self.mesh.variables['G'])
         MSTAR = float(self.mesh.variables['MSTAR'])
         GM = G*MSTAR
         X = self.pos
-        dstar = np.linalg.norm(X)
-        return -GM/dstar**3 * (X)
+        dstar = np.linalg.norm(X-Xs)
+        return -GM/dstar**3 * (X-Xs)
 
     def get_planetAccel(self,planet):
         """grav acceleration vector due to planet"""

@@ -387,7 +387,7 @@ class Mesh():
             if self.ndim == 2:
                 return interp(np.stack([r,az],axis=-1))
             else:
-                return interp(np.stack([pol,r,az],axis=-1))[0]
+                return interp(np.stack([pol,r,az],axis=-1))
 
         else:
             raise Exception('uncertain on coordinates,'
@@ -432,7 +432,11 @@ class Mesh():
         arr[0:lenz,:,-1] = self.state[state][:,:,0]
         
         # flip and repeat over the z axis
-        arr[-1:lenz-1:-1,:,:] = arr[0:lenz,:,:]
+        # if the gas vel, need to make velocities negative
+        if state == 'gasvz':
+            arr[-1:lenz-1:-1,:,:] = -arr[0:lenz,:,:]
+        else:
+            arr[-1:lenz-1:-1,:,:] = arr[0:lenz,:,:]
 
         # setup interpolator
         if self.ndim == 3:

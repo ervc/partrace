@@ -40,7 +40,7 @@ def fun(t,Y,particle,planet,diffusion=True):
         vx,vy,vz = particle.get_veff()
     else:
         vx,vy,vz = particle.vel
-    ax,ay,az = particle.total_accel(planet)  
+    ax,ay,az = particle.total_accel(planet)
     return np.array([vx,vy,vz,ax,ay,az])
 
 
@@ -84,7 +84,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     -------
     Solver object
     """
-    from scipy.integrate import RK45
+    import scipy.integrate as scint
     particle,planet = args
     # define new function to allow args to be passed into solver
     def f(t,y):
@@ -98,7 +98,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     maxh=None
     if 'max_step' in kw:
         maxh = kw['max_step']
-    rk = RK45(f,t0,y0,tf,**kwargs)
+    rk = scint.DOP853(f,t0,y0,tf,**kwargs)
     ys = [y0]
     ts = [t0]
     status = None
