@@ -229,7 +229,7 @@ class Particle(object):
         Sty = stokes(x,y+dy,z)
         dStdy = (Sty-St0)/dy
         if self.mesh.ndim == 3:
-            h = float(self.mesh.variable['ASPECTRATIO'])*(r/float(self.mesh.variables['R0']))**float(self.mesh.variables['FLARINGINDEX'])
+            h = float(self.mesh.variables['ASPECTRATIO'])*(r/float(self.mesh.variables['R0']))**float(self.mesh.variables['FLARINGINDEX'])
             dz = 0.01*r*h
             Stz = stokes(x,y,z+dz)
             dStdz = (Stz-St0)/dz
