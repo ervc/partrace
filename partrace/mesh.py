@@ -534,8 +534,9 @@ class Mesh():
         diffy = self.get_diffusivity(x,y+dy,z)
         dDdy = (diffy-diff0)/dy
         if self.ndim == 3:
-            dz = 0.01*r*float(self.variables['ASPECTRATIO'])
-            diffz = self.get_diffusivity(z,y,z+dz)
+            h = float(self.mesh.variable['ASPECTRATIO'])*(r/float(self.mesh.variables['R0']))**float(self.mesh.variables['FLARINGINDEX'])
+            dz = 0.01*r*h
+            diffz = self.get_diffusivity(x,y,z+dz)
             dDdz = (diffz-diff0)/dz
         else:
             dDdz = np.zeros_like(x)

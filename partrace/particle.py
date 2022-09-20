@@ -75,8 +75,12 @@ class Particle(object):
     def get_stokes(self):
         """get the stokes number at the current location"""
         om = self.mesh.get_Omega(*self.pos)
-        rho_g = self.mesh.get_rho(*self.pos)
-        cs = self.mesh.get_soundspeed(*self.pos)
+        rho_g = self.mesh.get_rho(*self.pos)[0]
+        print(f'{rho_g = }')
+        print(f'{rho_g.shape = }')
+        cs = self.mesh.get_soundspeed(*self.pos)[0]
+        print(f'{cs = }')
+        print(f'{cs.shape = }')
         return self.a*self.rho_s/(rho_g*cs)*om
 
     def get_drag_coeff(self):
@@ -216,8 +220,8 @@ class Particle(object):
         def stokes(x,y,z):
             # helper function to find stokes number
             om = self.mesh.get_Omega(x,y,z)
-            rho_g = self.mesh.get_rho(x,y,z)
-            cs = self.mesh.get_soundspeed(x,y,z)
+            rho_g = self.mesh.get_rho(x,y,z)[0]
+            cs = self.mesh.get_soundspeed(x,y,z)[0]
             return self.a*self.rho_s/(rho_g*cs)*om
 
         Stx = stokes(x+dx,y,z)
@@ -225,8 +229,9 @@ class Particle(object):
         Sty = stokes(x,y+dy,z)
         dStdy = (Sty-St0)/dy
         if self.mesh.ndim == 3:
-            dz = 0.01*r*float(self.mesh.variables['ASPECTRATIO'])
-            Stz = self.mesh.get_diffusivity(z,y,z+dz)
+            h = float(self.mesh.variable['ASPECTRATIO'])*(r/float(self.mesh.variables['R0']))**float(self.mesh.variables['FLARINGINDEX'])
+            dz = 0.01*r*h
+            Stz = stokes(x,y,z+dz)
             dStdz = (Stz-St0)/dz
         else:
             dStdz = np.zeros_like(x)
@@ -238,9 +243,17 @@ class Particle(object):
         vdiff = d/dx D = d/dx Dg/(1+st^2)
         """
         Dg = self.mesh.get_diffusivity(*self.pos)
+        print(f'{Dg = }')
+        print(f'{Dg.shape = }')
         dDgdx = np.array(self.mesh.get_diff_grad(*self.pos))
+        print(f'{dDgdx = }')
+        print(f'{dDgdx.shape = }')
         St = self.get_stokes()
+        print(f'{St = }')
+        print(f'{St.shape = }')
         dStdx = np.array(self.get_stokes_grad())
+        print(f'{dStdx = }')
+        print(f'{dStdx.shape = }')
         p1 = dDgdx/(1+St**2)
         p2 = -Dg/((1+St**2)**(2))*2*St*dStdx
         return np.array([p1+p2]).reshape(3,)
@@ -251,8 +264,15 @@ class Particle(object):
         vrho = D/rho * d/dx[rho]
         """
         drhodx,drhody,drhodz = self.mesh.get_rho_grad(*self.pos)
+        drhodx = drhodx[0]
+        drhody = drhody[0]
+        drhodz = drhodz[0]
+        print(f'{drhodx = }')
+        print(f'{drhodx.shape = }')
         D = self.get_particleDiffusivity()
-        rhog = self.mesh.get_rho(*self.pos)
+        print(f'{D = }')
+        print(f'{D.shape = }')
+        rhog = self.mesh.get_rho(*self.pos)[0]
 
         return np.array([D/rhog*drhodx, D/rhog*drhody, D/rhog*drhodz])
 
