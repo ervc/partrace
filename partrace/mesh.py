@@ -553,8 +553,9 @@ class Mesh():
         rhoy = self.get_rho(x,y+dy,z)
         drhoy = (rhoy-rho0)/dy
         if self.ndim == 3:
-            dz = 0.01*r*float(self.variables['ASPECTRATIO'])
-            rhoz = self.get_rho(z,y,z+dz)
+            h = float(self.variables['ASPECTRATIO'])*(r/float(self.variables['R0']))**float(self.variables['FLARINGINDEX'])
+            dz = 0.01*r*h
+            rhoz = self.get_rho(x,y,z+dz)
             drhoz = (rhoz-rho0)/dz
         else:
             drhoz = np.zeros_like(x)

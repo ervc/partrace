@@ -76,11 +76,7 @@ class Particle(object):
         """get the stokes number at the current location"""
         om = self.mesh.get_Omega(*self.pos)
         rho_g = self.mesh.get_rho(*self.pos)[0]
-        print(f'{rho_g = }')
-        print(f'{rho_g.shape = }')
         cs = self.mesh.get_soundspeed(*self.pos)[0]
-        print(f'{cs = }')
-        print(f'{cs.shape = }')
         return self.a*self.rho_s/(rho_g*cs)*om
 
     def get_drag_coeff(self):
@@ -243,17 +239,9 @@ class Particle(object):
         vdiff = d/dx D = d/dx Dg/(1+st^2)
         """
         Dg = self.mesh.get_diffusivity(*self.pos)
-        print(f'{Dg = }')
-        print(f'{Dg.shape = }')
         dDgdx = np.array(self.mesh.get_diff_grad(*self.pos))
-        print(f'{dDgdx = }')
-        print(f'{dDgdx.shape = }')
         St = self.get_stokes()
-        print(f'{St = }')
-        print(f'{St.shape = }')
         dStdx = np.array(self.get_stokes_grad())
-        print(f'{dStdx = }')
-        print(f'{dStdx.shape = }')
         p1 = dDgdx/(1+St**2)
         p2 = -Dg/((1+St**2)**(2))*2*St*dStdx
         return np.array([p1+p2]).reshape(3,)
@@ -267,11 +255,7 @@ class Particle(object):
         drhodx = drhodx[0]
         drhody = drhody[0]
         drhodz = drhodz[0]
-        print(f'{drhodx = }')
-        print(f'{drhodx.shape = }')
         D = self.get_particleDiffusivity()
-        print(f'{D = }')
-        print(f'{D.shape = }')
         rhog = self.mesh.get_rho(*self.pos)[0]
 
         return np.array([D/rhog*drhodx, D/rhog*drhody, D/rhog*drhodz])
