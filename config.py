@@ -19,10 +19,10 @@ nparts = 16
 partlocations = np.empty(nparts,dtype=tuple)
 for i in range(nparts):
     phi = i*2*np.pi/nparts
-    x = r*const.AU*np.cos(phi)
-    y = r*const.AU*np.sin(phi)
-    z = z*const.AU
-    partlocations[i] = (x,y,z)
+    x0 = r*const.AU*np.cos(phi)
+    y0 = r*const.AU*np.sin(phi)
+    z0 = z*const.AU
+    partlocations[i] = (x0,y0,z0)
 
-outputdir = f'particleout/{fargodir.split("/")[-1]}/r{r}_z{z}'
+outputdir = f'particleout/{fargodir.split("/")[-1]}_r{r}_z{z}'
 
