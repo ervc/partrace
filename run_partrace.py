@@ -18,7 +18,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('config_file')
 args = parser.parse_args()
 
-confname = args.config_file.split('.')[:-1]
+confname = '.'.join(args.config_file.split('.')[:-1])
+print(confname)
 
 conf = __import__(confname)
 
