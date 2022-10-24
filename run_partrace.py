@@ -18,7 +18,9 @@ parser = argparse.ArgumentParser()
 parser.add_argument('config_file')
 args = parser.parse_args()
 
-conf = __import__(args.config_file)
+confname = args.config_file.split('.')[:-1]
+
+conf = __import__(confname)
 
 # constants
 DIFFUSION = conf.diffusion
