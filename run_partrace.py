@@ -15,7 +15,7 @@ from partrace.integrate import integrate
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_arg('config_file')
+parser.add_argument('config_file')
 args = parser.parse_args()
 
 conf = __import__(args.config_file)
