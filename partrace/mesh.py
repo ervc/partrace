@@ -70,7 +70,7 @@ class Mesh():
     def __init__(self, fargodir, states='all', n=-1, quiet=False):
         self.fargodir = fargodir
         self.ndim = 3
-        self.read_variables()
+        self.read_variables(n)
         self.get_domain()
         self.quiet = quiet
         if not quiet:

@@ -84,6 +84,19 @@ class Planet():
                 self.mass = mass
                 self.time = time
                 self.omegaframe = omegaframe
+        if all(x==0 for x in self.pos):
+            # catch case where planet output is messed up
+            with open(self.mesh.fargodir+'/'+self.fname,'r') as f:
+                lines = f.readlines()
+                line0 = lines[0]
+                nout,x,y,z,vx,vy,vz,mass,time,omegaframe = map(float,
+                                                               line.split())
+
+                self.pos = np.array([x,y,z])
+                self.vel = np.array([vx,vy,vz])
+                self.mass = mass
+                self.time = time
+                self.omegaframe = omegaframe
 
     def get_hill_radius(self):
         """determine the hill radius of the planet"""
