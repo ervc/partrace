@@ -32,6 +32,7 @@ NOUT = conf.noutput
 NPART = conf.nparts
 LOCS = conf.partlocations
 MAXSTEP = False
+SOLVER = 'DOP'
 
 # make the output directory if doesn't exist
 if not os.path.exists(OUTPUTDIR):
