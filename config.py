@@ -1,6 +1,6 @@
 import numpy as np
 
-from ..partrace import constants as const
+from partrace import constants as const
 
 diffusion = False
 fargodir = '../fargo/outputs/alpha3d_moreaz_cont'
