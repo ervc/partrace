@@ -41,6 +41,14 @@ SOLVER = 'DOP'
 if not os.path.exists(OUTPUTDIR):
     subprocess.run(['mkdir',OUTPUTDIR])
 
+subprocess.run(['cp',args.config_file,f'{OUTPUTDIR}/{args.config_file}'])
+
+with open(f'{OUTPUTDIR}/variables.out','w+') as f:
+    f.write(f'fargodir = {FARGODIR}\n')
+    f.write(f't0 = {T0}\n')
+    f.write(f'tf = {TF}\n')
+    f.write(f'nout = {NOUT}\n')
+    f.write(f'nparts = {NPART}\n')
 
 def main():
     # global
