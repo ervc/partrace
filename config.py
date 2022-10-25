@@ -15,7 +15,7 @@ noutput = 200
 
 r = 7 # au
 z = 0 # au
-nparts = 16
+nparts = 360
 partlocations = np.empty(nparts,dtype=tuple)
 for i in range(nparts):
     phi = i*2*np.pi/nparts
@@ -24,5 +24,5 @@ for i in range(nparts):
     z0 = z*const.AU
     partlocations[i] = (x0,y0,z0)
 
-outputdir = f'particleout/{fargodir.split("/")[-1]}_r{r}_z{z}'
+outputdir = f'particleout/{fargodir.split("/")[-1]}_r{r}_z{z}_a{partsize}_n{noutput}'
 
