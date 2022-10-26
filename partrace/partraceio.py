@@ -42,8 +42,8 @@ def read_locations(fpart):
     locs = []
     with open(fpart,'r') as f:
         for line in f:
-            if line.startwith('#'):
+            if line.startswith('#'):
                 continue
             n,x,y,z = line.split()
-            locs.append((x,y,z))
+            locs.append((float(x),float(y),float(z)))
     return np.array(locs)
