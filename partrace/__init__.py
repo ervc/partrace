@@ -19,6 +19,7 @@ from . import mesh
 from . import grid
 from . import integrate
 from . import planet
+from . import partraceio
 
 def create_grid(fargodir,nx,ny,nz=1,domain=None,
                  nout=-1,quiet=False):

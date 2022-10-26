@@ -8,40 +8,39 @@ import os
 import subprocess
 from time import time
 
+
 # partrace imports
 import partrace as pt
 import partrace.constants as const
 from partrace.integrate import integrate
+import partrace.partraceio as ptio
 
 import argparse
 parser = argparse.ArgumentParser()
-parser.add_argument('config_file')
+parser.add_argument('infile')
 args = parser.parse_args()
 
-confname = '.'.join(args.config_file.split('.')[:-1])
-print(confname)
-
-conf = __import__(confname)
+params = ptio.read_input(args.infile)
 
 # constants
-DIFFUSION = conf.diffusion
-FARGODIR = conf.fargodir
-OUTPUTDIR = conf.outputdir
-A = conf.partsize
-RHOS = conf.rho_s
-T0 = conf.t0
-TF = conf.tf
-NOUT = conf.noutput
-NPART = conf.nparts
-LOCS = conf.partlocations
+DIFFUSION = params['diffusion']
+FARGODIR = params['fargodir']
+OUTPUTDIR = params['outputdir']
+A = params['partsize']
+RHOS = params['partdens']
+T0 = params['t0']
+TF = params['tf']
+NOUT = params['nout']
+
+LOCS = ptio.read_locations(params['partfile'])
+NPART = len(LOCS)
+
 MAXSTEP = False
 SOLVER = 'DOP'
 
 # make the output directory if doesn't exist
 if not os.path.exists(OUTPUTDIR):
     subprocess.run(['mkdir',OUTPUTDIR])
-
-subprocess.run(['cp',args.config_file,f'{OUTPUTDIR}/{args.config_file}'])
 
 with open(f'{OUTPUTDIR}/variables.out','w+') as f:
     f.write(f'fargodir = {FARGODIR}\n')
