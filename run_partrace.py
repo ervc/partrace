@@ -34,6 +34,8 @@ NOUT = params['nout']
 
 LOCS = ptio.read_locations(params['partfile'])
 NPART = len(LOCS)
+print('particle 0 is at:')
+print(LOCS[0])
 
 MAXSTEP = False
 SOLVER = 'DOP'
