@@ -44,6 +44,8 @@ SOLVER = 'DOP'
 if not os.path.exists(OUTPUTDIR):
     subprocess.run(['mkdir',OUTPUTDIR])
 
+ptio.write_paramsfile(params,f'{OUTPUTDIR}/params.ini')
+
 with open(f'{OUTPUTDIR}/variables.out','w+') as f:
     f.write(f'fargodir = {FARGODIR}\n')
     f.write(f't0 = {T0}\n')

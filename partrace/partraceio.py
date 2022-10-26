@@ -47,3 +47,9 @@ def read_locations(fpart):
             n,x,y,z = line.split()
             locs.append((float(x),float(y),float(z)))
     return np.array(locs)
+
+def write_paramsfile(params,fname):
+    with open(fname,'w') as f:
+        f.write('[params]\n')
+        for key in params:
+            f.write(f'{key} = {params[key]}\n')
