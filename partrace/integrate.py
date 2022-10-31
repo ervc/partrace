@@ -109,16 +109,16 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
         3 : 'accreted',
         -2 : 'other'}
     print('starting loop')
+    nout = 128
     n = 0
-    tout = 0.01
+    touts = np.logspace(0,np.log10(tf),nout)
+    print(f'{touts = }')
     while status is None:
         message = rk.step()
         if diffusion:
             add_diffusion(particle,rk)
         particle.update_position(*rk.y[:3])
         particle.update_velocity(*rk.y[3:])
-        ys.append(rk.y)
-        ts.append(rk.t)
         if rk.status == 'finished':
             status = 0
         elif rk.status == 'failed':
@@ -136,9 +136,14 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
             rp = np.sqrt(xp*xp + yp*yp + zp*zp)
             if rp<=planet.envelope:
                 status = 3
-        if rk.t/tf > n*tout:
+        if rk.t >= touts[n]:
+            t = touts[n]
+            do = rk.dense_output()
+            y = do(t)
+            ys.append(y)
+            ts.append(t)
             n+=1
-            print(rk.t/tf,r/minr,rk.step_size/maxh,rk.y,'\n',flush=True)
+            print(t,rk.y,'\n',flush=True)
             if savefile:
                 times = np.array(ts)
                 history = np.stack(ys)
