@@ -145,11 +145,11 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
             ys.append(y)
             ts.append(t)
             n+=1
-        if savefile:
-            print(f'time {n}/{nout}',f't = {t:.3e}',rk.y,'\n',flush=True)
-            times = np.array(ts)
-            history = np.stack(ys)
-            np.savez(savefile,times=times,history=history)
+            if savefile:
+                print(f'time {n}/{nout}',f't = {t:.3e}',rk.y,'\n',flush=True)
+                times = np.array(ts)
+                history = np.stack(ys)
+                np.savez(savefile,times=times,history=history)
     print(f'Solver stopped, status = {statii[status]}')
     # convert to arrays
     times = np.array(ts)
