@@ -101,3 +101,11 @@ def create_planet(mesh,planet_no=0,name='jupiter'):
     """
     p = planet.Planet(mesh,planet_no,name)
     return p
+
+def get_nparts(partfile):
+    npart = 0
+    with open(partfile,'r') as f:
+        for line in f:
+            if not line.startswith('#'):
+                npart+=1
+    return npart
