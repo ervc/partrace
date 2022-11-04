@@ -97,7 +97,7 @@ def main():
     with mp.Pool(npart) as pool:
         N = np.arange(npart)
         allargs = [(locs,pargs,intargs,n) for n in N]
-        allsols = pool.map(helper_func,allargs)
+        allsols = pool.imap(helper_func,allargs,chunksize=8)
     print('all done:')
     print('statuses: ',allsols)
     print(f'successes : {count_success(allsols)}/'
