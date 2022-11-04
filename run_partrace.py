@@ -97,7 +97,7 @@ def main():
     with mp.Pool(npart) as pool:
         N = np.arange(npart)
         allargs = [(locs,pargs,intargs,n) for n in N]
-        allsols = pool.imap(helper_func,allargs,chunksize=8)
+        allsols = pool.map(helper_func,allargs)
     print('all done:')
     print('statuses: ',allsols)
     print(f'successes : {count_success(allsols)}/'
@@ -133,8 +133,9 @@ def helper_func(args):
     else:
         savefile = None
     t0,tf,planet,kw = intargs
-    sol = integrate(t0,tf,p,planet,savefile=savefile,diffusion=DIFFUSION,**kw)
-    return sol.status
+    status = integrate(t0,tf,p,planet,savefile=savefile,diffusion=DIFFUSION,**kw)
+    del(p)
+    return status
 
 def count_success(allsols):
     ns = 0
