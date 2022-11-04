@@ -163,7 +163,9 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     if savefile:
         np.savez(savefile,times=times,history=history)
         print(f'saved to {savefile}')
-    return Solver(status,times,history,rk)
+    del(times)
+    del(history)
+    return status
 
 def integrate(t0,tf,particle,planet = None,savefile=None,diffusion=True,**kwargs):
     """
@@ -200,8 +202,8 @@ def integrate(t0,tf,particle,planet = None,savefile=None,diffusion=True,**kwargs
     vx0,vy0,vz0 = particle.vel0
     Y0 = np.array([x0,y0,z0,vx0,vy0,vz0])
     print('integrating')
-    sol = solve_ode(fun,t0,Y0,tf,args=args,savefile=savefile,diffusion=diffusion,**kwargs)
-    return sol
+    status = solve_ode(fun,t0,Y0,tf,args=args,savefile=savefile,diffusion=diffusion,**kwargs)
+    return status
 
 def one_step(particle,planet,**kwargs):
     """Debugging function to take only one step at a time."""
