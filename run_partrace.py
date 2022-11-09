@@ -94,7 +94,7 @@ def main():
     kw = {'max_step':maxdt,'atol':atol,'rtol':rtol}
     intargs = (t0,tf,planet,kw)
 
-    with mp.Pool(npart) as pool:
+    with mp.Pool() as pool:
         N = np.arange(npart)
         allargs = [(locs,pargs,intargs,n) for n in N]
         allsols = pool.map(helper_func,allargs)
