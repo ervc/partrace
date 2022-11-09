@@ -97,12 +97,13 @@ def main():
     with mp.Pool(npart) as pool:
         N = np.arange(npart)
         allargs = [(locs,pargs,intargs,n) for n in N]
-        allsols = pool.map(helper_func,allargs)
+        allsols = pool.imap(helper_func,allargs)
     statii = np.zeros(NPART,dtype=int)
     ends = np.zeros((NPART,3),dtype=float)
     starts = np.zeros((NPART,3),dtype=float)
     times = np.zeros(NPART)
-    for i in range(NPART):
+    for i,sol in allsols:
+        print(sol)
         stat,hist,time = allsols[i]
         statii[i] = stat
         ends[i] = hist[:3]
