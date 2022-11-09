@@ -101,11 +101,13 @@ def main():
     statii = np.zeros(NPART,dtype=int)
     ends = np.zeros((NPART,3),dtype=float)
     starts = np.zeros((NPART,3),dtype=float)
+    times = np.zeros(NPART)
     for i in range(NPART):
-        stat,hist = allsols[i]
+        stat,hist,time = allsols[i]
         statii[i] = stat
         ends[i] = hist[:3]
         starts[i] = locs[i]
+        times[i] = time
     np.savez(f'{OUTPUTDIR}/allparts.npz',starts=starts,ends=ends,status=statii)
     print('all done:')
     print('statuses: ',statii)
@@ -139,9 +141,10 @@ def helper_func(args):
     p = pt.create_particle(mesh,x0,y0,z0,a,rho_s)
     savefile = f'{OUTPUTDIR}/history_{n}.npz'
     t0,tf,planet,kw = intargs
-    status,end = integrate(t0,tf,p,planet,savefile=savefile,diffusion=DIFFUSION,**kw)
+    status,end,time = integrate(t0,tf,p,planet,savefile=savefile,
+        diffusion=DIFFUSION,**kw)
     del(p)
-    return status,end
+    return status,end,time
 
 def count_success(allsols):
     ns = 0
