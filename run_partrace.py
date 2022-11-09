@@ -98,10 +98,19 @@ def main():
         N = np.arange(npart)
         allargs = [(locs,pargs,intargs,n) for n in N]
         allsols = pool.map(helper_func,allargs)
+    statii = np.zeros(NPART,dtype=int)
+    ends = np.zeros((NPART,3),dtype=float)
+    starts = np.zeros((NPART,3),dtype=float)
+    for i in range(NPART):
+        stat,hist = allsols[i]
+        statii[i] = stat
+        ends[i] = hist[:3]
+        starts[i] = locs[i]
+    np.savez(f'{OUTPUTDIR}/allparts.npz',starts=starts,ends=ends,status=statii)
     print('all done:')
-    print('statuses: ',allsols)
-    print(f'successes : {count_success(allsols)}/'
-        +f'{len(allsols)}')
+    print('statuses: ',statii)
+    print(f'successes : {count_success(statii)}/'
+        +f'{len(statii)}')
 
 
 def helper_func(args):
@@ -130,9 +139,9 @@ def helper_func(args):
     p = pt.create_particle(mesh,x0,y0,z0,a,rho_s)
     savefile = f'{OUTPUTDIR}/history_{n}.npz'
     t0,tf,planet,kw = intargs
-    status = integrate(t0,tf,p,planet,savefile=savefile,diffusion=DIFFUSION,**kw)
+    status,end = integrate(t0,tf,p,planet,savefile=savefile,diffusion=DIFFUSION,**kw)
     del(p)
-    return status
+    return status,end
 
 def count_success(allsols):
     ns = 0
