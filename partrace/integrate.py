@@ -109,9 +109,9 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
         3 : 'accreted',
         -2 : 'other'}
     print('starting loop')
-    nout = 128
+    nout = 256
     n = 0
-    touts = np.logspace(0,np.log10(tf),nout)
+    touts = np.logspace(1,np.log10(tf),nout)
     print(f'{touts = }')
     while status is None:
         message = rk.step()

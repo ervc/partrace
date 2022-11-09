@@ -128,10 +128,11 @@ def helper_func(args):
     x0,y0,z0 = locs[n]
     mesh,a,rho_s = pargs
     p = pt.create_particle(mesh,x0,y0,z0,a,rho_s)
-    if n in [0,30,60,90,120,150,180,210,240,270,300,330]:
-        savefile = f'{OUTPUTDIR}/history_{n}.npz'
-    else:
-        savefile = None
+    #if n in [0,30,60,90,120,150,180,210,240,270,300,330]:
+    #    savefile = f'{OUTPUTDIR}/history_{n}.npz'
+    #else:
+    #    savefile = None
+    savefile = f'{OUTPUTDIR}/history_{n}.npz'
     t0,tf,planet,kw = intargs
     status = integrate(t0,tf,p,planet,savefile=savefile,diffusion=DIFFUSION,**kw)
     del(p)
