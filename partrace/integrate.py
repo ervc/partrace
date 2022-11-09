@@ -166,7 +166,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     ret = (status,history[-1])
     del(times)
     del(history)
-    return status
+    return ret
 
 def integrate(t0,tf,particle,planet = None,savefile=None,diffusion=True,**kwargs):
     """
