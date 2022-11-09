@@ -108,7 +108,7 @@ def main():
         ends[i] = hist[:3]
         starts[i] = locs[i]
         times[i] = time
-    np.savez(f'{OUTPUTDIR}/allparts.npz',starts=starts,ends=ends,status=statii)
+    np.savez(f'{OUTPUTDIR}/allparts.npz',starts=starts,ends=ends,status=statii,times=times)
     print('all done:')
     print('statuses: ',statii)
     print(f'successes : {count_success(statii)}/'
