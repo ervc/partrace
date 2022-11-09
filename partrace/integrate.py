@@ -163,6 +163,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     if savefile:
         np.savez(savefile,times=times,history=history)
         print(f'saved to {savefile}')
+    ret = (status,history[-1])
     del(times)
     del(history)
     return status
