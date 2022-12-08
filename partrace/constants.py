@@ -6,7 +6,7 @@ import numpy as np
 
 #: :obj:`float`
 #: CGS Mass of Sun
-MSUN = 1.98847e33
+MSUN = 1.9891e33
 
 #: :obj:`float`
 #: CGS Mass of Jupiter
@@ -18,7 +18,7 @@ MEARTH = 5.97e27
 
 #: :obj:`float`
 #: CGS Gravitational constant
-G = 6.67430e-8
+G = 6.674e-8
 
 #: :obj:`float`
 #: CGS Gravitational constant times mass of Sun
@@ -26,7 +26,7 @@ GMSUN = G*MSUN
 
 #: :obj:`float`
 #: 1 au in cm
-AU = 1.495978707e13
+AU = 1.49597871e13
 
 #: :obj:`float`
 #: CGS Boltzmann constant
