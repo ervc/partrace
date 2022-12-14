@@ -111,7 +111,8 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     print('starting loop')
     nout = 128
     n = 0
-    touts = np.logspace(0,np.log10(tf),nout)
+    from constants import YR
+    touts = np.logspace(np.log10(YR),np.log10(tf),nout)
     print(f'{touts = }')
     while status is None:
         message = rk.step()
