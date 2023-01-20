@@ -70,11 +70,13 @@ class Mesh():
     def __init__(self, fargodir, states='all', n=-1, quiet=False):
         self.fargodir = fargodir
         self.ndim = 3
+        self.rescaled = False
         self.read_variables(n)
+        if self.variables['UNITS'] == 'code':
+            self.rescale_variables()
+            self.rescaled = True
         self.get_domain()
         self.quiet = quiet
-        if not quiet:
-            self.confirm()
         self.state = {}
         self.interpolators = {}
         self.n = {}
@@ -102,6 +104,36 @@ class Mesh():
                 print(outstr)
 
 
+        if not quiet:
+                self.confirm()
+
+    def rescale_variables(self):
+        """Rescales relevant quantities into CGS units"""
+        # most these constants are defined in partrace/constants and * imported
+        G = G
+        R0 = 5.2*AU
+        MSTAR = MSUN
+
+        # Rescale values
+        LENGTH = R0
+        MASS   = MSTAR
+        TIME   = np.sqrt(R0*R0*R0/G/MSTAR)
+
+        # rescale variables
+        self.variables['DT'] *= TIME
+        self.variables['OMEGAFRAME'] *= 1/TIME
+        self.variables['SIGMA0'] *= MASS/LENGTH/LENGTH/LENGTH
+        self.variables['YMAX'] *= LENGTH
+        self.variables['YMIN'] *= LENGTH
+        self.variabels['units'] = 'CGS'
+
+        # remember these rescaled values!
+        self.variables['R0'] = R0
+        self.variables['MSTAR'] = MSTAR
+        self.variables['G'] = G
+
+
+
     def confirm(self):
         """prints confirmation message from mesh creation"""
         conf_msg = ''
@@ -110,6 +142,8 @@ class Mesh():
         conf_msg += f'nx, ny, nz = {self.nx, self.ny, self.nz}\n'
         conf_msg += f'ndim = {self.ndim}\n'
         conf_msg += f'coord. system = {self.variables["COORDINATES"]}\n'
+        if self.rescaled:
+            conf_msg += 'units have been rescaled:\n'
         if 'UNITS' not in self.variables:
             conf_msg += f'units = code\n'
         elif self.variables['UNITS']=='0':
@@ -197,6 +231,9 @@ class Mesh():
             self.yedges = list(allyedges)
         self.ny = len(self.yedges)-1
         self.yedges = np.array(self.yedges)
+        if self.rescaled:
+            LENGTH = self.variables['R0']
+            self.yedges *= LENGTH
 
         # zedges = height or polar angle, may contain ghost cells, 
         # may not exist
@@ -284,6 +321,7 @@ class Mesh():
         """
         MAXN = 1000
 
+
         if n < 0:
             lastn = 0
             for i in range(MAXN+1):
@@ -301,6 +339,20 @@ class Mesh():
         statefile = self.fargodir+f'/{state}{n}.dat'
 
         state_arr = np.fromfile(statefile).reshape(self.nz,self.ny,self.nx)
+        if self.rescaled:
+            R0 = self.variables['R0']
+            MSTAR = self.variables['MSTAR']
+            G = self.variables['G']
+            LENGTH = R0
+            MASS = MSTAR
+            TIME = np.sqrt(R0*R0*R0/G/MSTAR)
+            if state == 'gasdens':
+                state_arr *= MASS/LENGTH/LENGTH/LENGTH
+            else:
+                # note that gasenergy is the sound speed for eos==isothermal
+                if '-DISOTHERMAL' not in self.variables['FLAGS']:
+                    print('WARNING: gasenergy will not be rescaled correctly if eos != isothermal!\n')
+                state_arr *= LENGTH/TIME
         self.state[state] = state_arr
         return state_arr
 
