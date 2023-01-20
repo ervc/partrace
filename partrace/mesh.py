@@ -121,7 +121,7 @@ class Mesh():
 
         # rescale variables
         self.variables['DT']         = str(TIME * float(self.variables['DT']))
-        self.variables['OMEGAFRAME'] = self.str(1/TIME * float(self.variables['OMEGAFRAME']))
+        self.variables['OMEGAFRAME'] = str(1/TIME * float(self.variables['OMEGAFRAME']))
         self.variables['SIGMA0']     = str(MASS/LENGTH/LENGTH/LENGTH * float(self.variables['SIGMA0']))
         self.variables['YMAX']       = str(LENGTH * float(self.variables['YMAX']))
         self.variables['YMIN']       = str(LENGTH * float(self.variables['YMIN']))
