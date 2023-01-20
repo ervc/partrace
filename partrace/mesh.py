@@ -110,8 +110,8 @@ class Mesh():
     def rescale_variables(self):
         """Rescales relevant quantities into CGS units"""
         # most these constants are defined in partrace/constants and * imported
-        G = G
-        R0 = 5.2*AU
+        # G = G
+        R0    = 5.2*AU
         MSTAR = MSUN
 
         # Rescale values
@@ -120,17 +120,17 @@ class Mesh():
         TIME   = np.sqrt(R0*R0*R0/G/MSTAR)
 
         # rescale variables
-        self.variables['DT'] *= TIME
-        self.variables['OMEGAFRAME'] *= 1/TIME
-        self.variables['SIGMA0'] *= MASS/LENGTH/LENGTH/LENGTH
-        self.variables['YMAX'] *= LENGTH
-        self.variables['YMIN'] *= LENGTH
-        self.variabels['units'] = 'CGS'
+        self.variables['DT']         = str(TIME * float(self.variables['DT']))
+        self.variables['OMEGAFRAME'] = self.str(1/TIME * float(self.variables['OMEGAFRAME']))
+        self.variables['SIGMA0']     = str(MASS/LENGTH/LENGTH/LENGTH * float(self.variables['SIGMA0'])
+        self.variables['YMAX']       = str(LENGTH * float(self.variables['YMAX']))
+        self.variables['YMIN']       = str(LENGTH * float(self.variables['YMIN']))
+        self.variabels['units']      = 'CGS'
 
         # remember these rescaled values!
-        self.variables['R0'] = R0
-        self.variables['MSTAR'] = MSTAR
-        self.variables['G'] = G
+        self.variables['R0']    = str(R0)
+        self.variables['MSTAR'] = str(MSTAR)
+        self.variables['G']     = str(G)
 
 
 
@@ -232,7 +232,7 @@ class Mesh():
         self.ny = len(self.yedges)-1
         self.yedges = np.array(self.yedges)
         if self.rescaled:
-            LENGTH = self.variables['R0']
+            LENGTH = float(self.variables['R0'])
             self.yedges *= LENGTH
 
         # zedges = height or polar angle, may contain ghost cells, 
@@ -340,12 +340,12 @@ class Mesh():
 
         state_arr = np.fromfile(statefile).reshape(self.nz,self.ny,self.nx)
         if self.rescaled:
-            R0 = self.variables['R0']
-            MSTAR = self.variables['MSTAR']
-            G = self.variables['G']
+            R0    = float(self.variables['R0'])
+            MSTAR = float(self.variables['MSTAR'])
+            G     = float(self.variables['G'])
             LENGTH = R0
-            MASS = MSTAR
-            TIME = np.sqrt(R0*R0*R0/G/MSTAR)
+            MASS   = MSTAR
+            TIME   = np.sqrt(R0*R0*R0/G/MSTAR)
             if state == 'gasdens':
                 state_arr *= MASS/LENGTH/LENGTH/LENGTH
             else:

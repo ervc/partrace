@@ -99,12 +99,12 @@ class Planet():
                 self.omegaframe = omegaframe
 
         if self.mesh.rescaled:
-            R0 = self.mesh.variables['R0']
-            G = self.mesh.variables['G']
-            MSTAR = self.mesh.variables['MSTAR']
+            R0    = float(self.mesh.variables['R0'])
+            G     = float(self.mesh.variables['G'])
+            MSTAR = float(self.mesh.variables['MSTAR'])
             LENGTH = R0
-            MASS = MSTAR
-            TIME = np.sqrt(R0*R0*R0/G/MSTAR)
+            MASS   = MSTAR
+            TIME   = np.sqrt(R0*R0*R0/G/MSTAR)
             self.pos *= LENGTH
             self.vel *= LENGTH/TIME
             self.mass *= MASS
