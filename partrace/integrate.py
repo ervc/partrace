@@ -98,7 +98,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     maxh=None
     if 'max_step' in kw:
         maxh = kw['max_step']
-    rk = scint.DOP853(f,t0,y0,tf,**kwargs)
+    rk = scint.LSODA(f,t0,y0,tf,**kwargs)
     ys = [y0]
     ts = [t0]
     status = None
@@ -111,7 +111,8 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     print('starting loop')
     nout = 256
     n = 0
-    touts = np.logspace(1,np.log10(tf),nout)
+    touts = np.logspace(7,np.log10(tf),nout)
+    #touts = np.logspace(np.log10(YR),np.log10(tf),nout)
     print(f'{touts = }')
     while status is None:
         message = rk.step()
