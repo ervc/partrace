@@ -38,7 +38,7 @@ print('particle 0 is at:')
 print(LOCS[0])
 
 MAXSTEP = False
-SOLVER = 'DOP'
+SOLVER = 'BDF'
 
 # make the output directory if doesn't exist
 if not os.path.exists(OUTPUTDIR):

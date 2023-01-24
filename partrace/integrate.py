@@ -98,7 +98,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     maxh=None
     if 'max_step' in kw:
         maxh = kw['max_step']
-    rk = scint.LSODA(f,t0,y0,tf,**kwargs)
+    rk = scint.BDF(f,t0,y0,tf,**kwargs)
     ys = [y0]
     ts = [t0]
     status = None
