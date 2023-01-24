@@ -125,7 +125,7 @@ class Mesh():
         self.variables['SIGMA0']     = str(MASS/LENGTH/LENGTH/LENGTH * float(self.variables['SIGMA0']))
         self.variables['YMAX']       = str(LENGTH * float(self.variables['YMAX']))
         self.variables['YMIN']       = str(LENGTH * float(self.variables['YMIN']))
-        self.variabels['units']      = 'CGS'
+        self.variables['UNITS']      = 'CGS'
 
         # remember these rescaled values!
         self.variables['R0']    = str(R0)
