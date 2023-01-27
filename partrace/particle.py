@@ -239,9 +239,13 @@ class Particle(object):
         vdiff = d/dx D = d/dx Dg/(1+st^2)
         """
         Dg = self.mesh.get_diffusivity(*self.pos)
-        dDgdx = np.array(self.mesh.get_diff_grad(*self.pos))
+        dDgdx = np.array(self.mesh.get_diff_grad(*self.pos)).reshape(3,)
+        # print(f'{dDgdx = }')
+        # print(f'{dDgdx.shape = }')
         St = self.get_stokes()
         dStdx = np.array(self.get_stokes_grad())
+        # print(f'{dStdx = }')
+        # print(f'{dStdx.shape = }')
         p1 = dDgdx/(1+St**2)
         p2 = -Dg/((1+St**2)**(2))*2*St*dStdx
         return np.array([p1+p2]).reshape(3,)
@@ -252,12 +256,15 @@ class Particle(object):
         vrho = D/rho * d/dx[rho]
         """
         drhodx,drhody,drhodz = self.mesh.get_rho_grad(*self.pos)
+        #print(f'{drhodx = }')
+        #print(f'{drhodx.shape = }')
         drhodx = drhodx[0]
         drhody = drhody[0]
         drhodz = drhodz[0]
-        D = self.get_particleDiffusivity()
+        D = self.get_particleDiffusivity()[0]
         rhog = self.mesh.get_rho(*self.pos)[0]
 
+        #print(f'{D/rhog*drhodx = }')
         return np.array([D/rhog*drhodx, D/rhog*drhody, D/rhog*drhodz])
 
 
@@ -266,13 +273,19 @@ class Particle(object):
         diffusive effects from diffusivity and density gradients
         """
         veff = np.array(self.vel)
+        #print(f'{veff = }')
+        #print(f'{veff.shape = }')
         
         # vdiff = dD/dx
         vdiff = self.get_vdiff()
         veff += vdiff
+        #print(f'{veff = }')
+        #print(f'{veff.shape = }')
 
         # vrho = D/rho drho/dx
         vrho = self.get_vrho()
         veff += vrho
+        #print(f'{veff = }')
+        #print(f'{veff.shape = }')
 
         return veff

@@ -113,6 +113,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     n = 0
     touts = np.logspace(7,np.log10(tf),nout)
     #touts = np.logspace(np.log10(YR),np.log10(tf),nout)
+    #touts = np.linspace(500*3.15e7,tf,500)
     print(f'{touts = }')
     while status is None:
         message = rk.step()
