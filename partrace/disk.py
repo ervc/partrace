@@ -8,7 +8,7 @@ import numpy as np
 from .constants import *
 
 ALPHA = 1e-3
-PERTURBED = False
+PERTURBED = True
 
 print('Importing disk.py,'
     +' use of this module is deprecated and will no longer be supported'
@@ -32,7 +32,7 @@ def get_soundspeed(r):
 def get_Omegak(r,z):
     '''keplerian frequency'''
     r3 = (r*r + z*z)**(3/2)
-    return np.sqrt(GM/r3)
+    return np.sqrt(GMSUN/r3)
 
 def get_scaleheight(r):
     '''scaleheight of gas'''
@@ -48,7 +48,7 @@ def unperturbed_sigma(r):
 
 def perturbed_sigma(r):
     '''Perturbed disk profile a la Alarcon et al 2022'''
-    r0 = 4.5*AU      # gap center
+    r0 = 4.2*AU      # gap center
     rw = 0.16*r      # gap width
     rwh = 0.5*rw    # gap half width
     dep = 0.1     # gap depth
