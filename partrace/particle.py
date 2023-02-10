@@ -141,12 +141,15 @@ class Particle(object):
         different stellar movement.
         """
         if planet is not None:
-            Xp = planet.pos
-            Mp = planet.mass
-            Ms = float(self.mesh.variables['MSTAR'])
-            # 0 = (XpMp + XsMs)/(Ms+Mp)
-            # Xs = -XpMp/Ms
-            Xs = -Xp * Mp/Ms
+            if planet.mass == 0:
+                Xs = np.zeros(3)
+            else:
+                Xp = planet.pos
+                Mp = planet.mass
+                Ms = float(self.mesh.variables['MSTAR'])
+                # 0 = (XpMp + XsMs)/(Ms+Mp)
+                # Xs = -XpMp/Ms
+                Xs = -Xp * Mp/Ms
         else:
             Xs = np.zeros(3)
 
@@ -167,6 +170,8 @@ class Particle(object):
     def get_planetAccel(self,planet):
         """grav acceleration vector due to planet"""
         if planet is None:
+            return 0
+        if planet.mass == 0:
             return 0
         X = self.pos
         Xp = planet.pos
@@ -237,6 +242,7 @@ class Particle(object):
         """Calculate the diffusive velocity based on diffusivity 
         gradient where:
         vdiff = d/dx D = d/dx Dg/(1+st^2)
+              = dDg/dx/(1+St^2) + -Dg/(1+St^2)^2 * 2*St * dSt/dx
         """
         Dg = self.mesh.get_diffusivity(*self.pos)
         dDgdx = np.array(self.mesh.get_diff_grad(*self.pos)).reshape(3,)

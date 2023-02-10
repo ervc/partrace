@@ -46,7 +46,8 @@ def fun(t,Y,particle,planet,diffusion=True):
 
 def add_diffusion(particle,rk):
     """Helper function to add random diffusion to integration"""
-    R = np.random.uniform(-1.,1.,size=3)
+    rng = np.random.default_rng()
+    R = rng.random(3) * 2 - 1 # random number between -1 and 1
     if particle.mesh.ndim == 2:
         # if we're in 2d then no random motion in z direction
         R[2] = 0.
@@ -98,7 +99,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     maxh=None
     if 'max_step' in kw:
         maxh = kw['max_step']
-    rk = scint.BDF(f,t0,y0,tf,**kwargs)
+    rk = scint.Radau(f,t0,y0,tf,**kwargs)
     ys = [y0]
     ts = [t0]
     status = None
