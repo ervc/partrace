@@ -67,7 +67,7 @@ class Mesh():
     {x,y,z}edges : ndarray
         Array of length {nx+1,ny+1,nz+1} containing fargo cell edges.
     """
-    def __init__(self, fargodir, states='all', n=-1, quiet=False):
+    def __init__(self, fargodir, states='all', n=-1, quiet=False, regrid=False):
         self.fargodir = fargodir
         self.ndim = 3
         self.rescaled = False
@@ -77,6 +77,7 @@ class Mesh():
             self.rescaled = True
         self.get_domain()
         self.quiet = quiet
+        self.regrid = regrid
         self.state = {}
         self.interpolators = {}
         self.n = {}
@@ -410,12 +411,17 @@ class Mesh():
 
         return im
 
-    def get_state_from_cart(self,state,x,y,z=0):
+    def get_state_from_cart(self,state,x,y,z=None):
         """Get the value of 'state' at a given cartesian coordinate
         """
 
         # setup interpolator
         interp = self.interpolators[state]
+
+        if y is None:
+            y = np.zeros_like(x)
+        if z is None:
+            z = np.zeros_like(x)
 
         iterb = True
         try:
@@ -441,7 +447,13 @@ class Mesh():
             if self.ndim == 2:
                 return interp(np.stack([r,az],axis=-1))
             else:
-                return interp(np.stack([pol,r,az],axis=-1))
+                if self.regrid:
+                    if iterb:
+                        return interp(pol,r,az)
+                    else:
+                        return interp([pol],[r],[az])
+                else:
+                    return interp(np.stack([pol,r,az],axis=-1))
 
         else:
             raise Exception('uncertain on coordinates,'
@@ -455,6 +467,7 @@ class Mesh():
         this avoids issues with interpolating from a single z component
         """
         from scipy.interpolate import RegularGridInterpolator
+        from regulargrid.cartesiangrid import CartesianGrid
 
         Y = self.ycenters
 
@@ -499,6 +512,19 @@ class Mesh():
         else:
             interp = RegularGridInterpolator(
                 (Y,X),arr[0],method='linear',bounds_error=False)
+
+        # interpolate onto square grid
+        # Z and X are already regular spaced, regrid Y to be square
+        if self.regrid:
+            if not self.quiet:
+                print('regridding', state)
+            sY = np.linspace(Y.min(),Y.max(),256)
+            zz,yy,xx = np.meshgrid(Z,sY,X,indexing='ij')
+            sarr = interp(np.stack([zz,yy,xx],axis=-1))
+            limits = [(Z[0],Z[-1]),(Y[0],Y[-1]),(X[0],X[-1])]
+            interp = CartesianGrid(limits,sarr)
+            if not self.quiet:
+                print('created square grid for ',state)
 
         return interp
 

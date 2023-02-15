@@ -124,6 +124,8 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
         particle.update_velocity(*rk.y[3:])
         if rk.status == 'finished':
             status = 0
+            print(f'I have finished, last nout = {n}')
+            print(f'Solver time is {rk.t/3.15e7 = }')
         elif rk.status == 'failed':
             status = -1
         elif rk.status != 'running':
@@ -139,11 +141,13 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
             rp = np.sqrt(xp*xp + yp*yp + zp*zp)
             if rp<=planet.envelope:
                 status = 3
+        if status == 0:
+            print('I am continueing the loop even though I finished')
         if savefile:
-            while rk.t >= touts[n]:
+            while n<nout and rk.t >= touts[n]:
                 t = touts[n]
-                print(f'{rk.t = }')
-                print(f'{touts[n] = }')
+                print(f'{rk.t/3.15e7 = }')
+                print(f'{touts[n]/3.15e7 = }')
                 do = rk.dense_output()
                 y = do(t)
                 ys.append(y)
@@ -154,6 +158,19 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
                 np.savez(savefile,times=times,history=history)
                 n+=1
     print(f'Solver stopped, status = {statii[status]}')
+    # get the last time:
+    if savefile:
+        t = touts[-1]
+        print(f'{rk.t/3.15e7 = }')
+        print(f'{touts[-1]/3.15e7 = }')
+        do = rk.dense_output()
+        y = do(t)
+        ys.append(y)
+        ts.append(t)
+        print(f'time {n}/{nout}',rk.y,'\n',flush=True)
+        times = np.array(ts)
+        history = np.stack(ys)
+        np.savez(savefile,times=times,history=history)
     # convert to arrays
     times = np.array(ts)
     ## use np.stack to convert list of arrays to 2d array
@@ -218,7 +235,7 @@ def one_step(particle,planet,**kwargs):
     print(vx0,vy0,vz0)
     Y0 = np.array([x0,y0,z0,vx0,vy0,vz0])
 
-    y1 = fun(0,Y0,particle,planet)
+    y1 = fun(0,Y0,particle,planet,kwargs['diffusion'])
     print('dY0/dt')
     print(y1)
     

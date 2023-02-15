@@ -238,23 +238,58 @@ class Particle(object):
             dStdz = np.zeros_like(x)
         return dStdx,dStdy,dStdz
 
-    def get_vdiff(self):
-        """Calculate the diffusive velocity based on diffusivity 
-        gradient where:
-        vdiff = d/dx D = d/dx Dg/(1+st^2)
-              = dDg/dx/(1+St^2) + -Dg/(1+St^2)^2 * 2*St * dSt/dx
+    def get_Dp_grad(self):
         """
-        Dg = self.mesh.get_diffusivity(*self.pos)
-        dDgdx = np.array(self.mesh.get_diff_grad(*self.pos)).reshape(3,)
-        # print(f'{dDgdx = }')
-        # print(f'{dDgdx.shape = }')
-        St = self.get_stokes()
-        dStdx = np.array(self.get_stokes_grad())
-        # print(f'{dStdx = }')
-        # print(f'{dStdx.shape = }')
-        p1 = dDgdx/(1+St**2)
-        p2 = -Dg/((1+St**2)**(2))*2*St*dStdx
-        return np.array([p1+p2]).reshape(3,)
+        Return cartesian diffusivity gradient in x, y, and z directions
+        """
+        x,y,z = self.pos
+        r = np.sqrt(x*x + y*y)
+        dx = 0.01*r
+        dy = 0.01*r
+        St0 = self.get_stokes()
+
+        def stokes(x,y,z):
+            # helper function to find stokes number
+            om = self.mesh.get_Omega(x,y,z)
+            rho_g = self.mesh.get_rho(x,y,z)[0]
+            cs = self.mesh.get_soundspeed(x,y,z)[0]
+            return self.a*self.rho_s/(rho_g*cs)*om
+        def Dp(x,y,z):
+            Dg = self.mesh.get_diffusivity(x,y,z)
+            St = stokes(x,y,z)
+            return Dg/(1+St**2)
+
+        dDdx = (Dp(x+dx,y,z) - Dp(x-dx,y,z))/2/dx
+        dDdy = (Dp(x,y+dy,z) - Dp(x,y-dy,z))/2/dy
+        if self.mesh.ndim == 3:
+            h = self.mesh.get_scaleheight(*self.pos)
+            dz = 0.01*h
+            dDdz = (Dp(x,y,z+dz) - Dp(x,y,z-dz))/2/dz
+        else:
+            dDdz = np.zeros_like(x)
+
+        return dDdx, dDdy, dDdz
+        
+
+
+    def get_vdiff(self):
+        """Calculate the diffusive velocity using finite differences
+        v_diff = dDp/dx = [Dp(x+dx) - Dp(x-dx)]/2dx
+        Dp = D/(1+St^2)
+        """
+        return np.array(self.get_Dp_grad()).reshape(3,)
+
+        # Dg = self.mesh.get_diffusivity(*self.pos)
+        # dDgdx = np.array(self.mesh.get_diff_grad(*self.pos)).reshape(3,)
+        # # print(f'{dDgdx = }')
+        # # print(f'{dDgdx.shape = }')
+        # St = self.get_stokes()
+        # dStdx = np.array(self.get_stokes_grad())
+        # # print(f'{dStdx = }')
+        # # print(f'{dStdx.shape = }')
+        # p1 = dDgdx/(1+St**2)
+        # p2 = -Dg/((1+St**2)**(2))*2*St*dStdx
+        # return np.array([p1+p2]).reshape(3,)
 
     def get_vrho(self):
         """Calculate the diffusive velocity based on density gradient
