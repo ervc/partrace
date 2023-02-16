@@ -169,6 +169,17 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
         times = np.array(ts)
         history = np.stack(ys)
         np.savez(savefile,times=times,history=history)
+    # get accretion time for accreted particle
+    if savefile and status == 3:
+        t = rk.t
+        do = rk.dense_output()
+        y = do(t)
+        ys.append(y)
+        ts.append(t)
+        print(f'time {n}/{nout}',rk.y,'\n',flush=True)
+        times = np.array(ts)
+        history = np.stack(ys)
+        np.savez(savefile,times=times,history=history)
     # convert to arrays
     times = np.array(ts)
     ## use np.stack to convert list of arrays to 2d array
