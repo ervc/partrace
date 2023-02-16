@@ -124,15 +124,12 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
         particle.update_velocity(*rk.y[3:])
         if rk.status == 'finished':
             status = 0
-            print(f'I have finished, last nout = {n}')
-            print(f'Solver time is {rk.t/3.15e7 = }')
         elif rk.status == 'failed':
             status = -1
         elif rk.status != 'running':
             status = -2
         r = np.linalg.norm(rk.y[:3])
-        minr = np.nanmin(particle.mesh.ycenters)
-        if r <= minr:
+        if r <= np.nanmin(particle.mesh.ycenters):
             status = 1
         elif r >= np.nanmax(particle.mesh.ycenters):
             status = 2
@@ -141,8 +138,9 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
             rp = np.sqrt(xp*xp + yp*yp + zp*zp)
             if rp<=planet.envelope:
                 status = 3
-        if status == 0:
-            print('I am continueing the loop even though I finished')
+                print(f'ACCRETED! {rk.t/3.15e7 = }')
+                print(f'{touts[n-1]/3.15 = }')
+                print(f'{touts[n]/3.15 = }\n')
         if savefile:
             while n<nout and rk.t >= touts[n]:
                 t = touts[n]
@@ -159,7 +157,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
                 n+=1
     print(f'Solver stopped, status = {statii[status]}')
     # get the last time:
-    if savefile:
+    if savefile and status == 0:
         t = touts[-1]
         print(f'{rk.t/3.15e7 = }')
         print(f'{touts[-1]/3.15e7 = }')
