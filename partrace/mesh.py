@@ -572,6 +572,37 @@ class Mesh():
                     +' Using D=0')
             return 0
 
+    def sigma(self):
+        """Return surface density array, shape (mesh.ny, mesh.nx)"""
+        rho = self.state['gasdens']
+        Pc = mesh.xcenters
+        Rc = mesh.ycenters
+        T  = mesh.zedges
+
+        tt,rr,pp = np.meshgrid(T,Rc,Pc,indexing='ij')
+        zz = rr*np.cos(tt)
+
+        SD = np.zeros((mesh.ny,mesh.nx))
+        for i in range(mesh.nz):
+            dz = zz[i]-zz[i+1]
+            SD += rho[i]*dz
+        return 2*SD
+
+    def get_sigma(self,x,y):
+        """Return the surface density above at a given cartesian
+        location. Note that z=0 is assumed
+        """
+        SD = 0
+        h = self.get_scaleheight(x,y,z)
+        dz = 0.01*h
+        r = np.sqrt(x*x + y*y)
+        maxz = np.max(r*np.cos(self.zcenters))
+        z = 0
+        while z < maxz:
+            SD += self.get_rho(x,y,z)*dz
+            z += dz
+        return 2*SD
+
     def get_rho(self,x,y,z=0):
         """Determine the density at a given location"""
         if self.ndim == 2:
