@@ -575,15 +575,15 @@ class Mesh():
     def sigma(self):
         """Return surface density array, shape (mesh.ny, mesh.nx)"""
         rho = self.state['gasdens']
-        Pc = mesh.xcenters
-        Rc = mesh.ycenters
-        T  = mesh.zedges
+        Pc = self.xcenters
+        Rc = self.ycenters
+        T  = self.zedges
 
         tt,rr,pp = np.meshgrid(T,Rc,Pc,indexing='ij')
         zz = rr*np.cos(tt)
 
-        SD = np.zeros((mesh.ny,mesh.nx))
-        for i in range(mesh.nz):
+        SD = np.zeros((self.ny,self.nx))
+        for i in range(self.nz):
             dz = zz[i]-zz[i+1]
             SD += rho[i]*dz
         return 2*SD
