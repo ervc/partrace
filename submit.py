@@ -9,21 +9,17 @@ def main(args):
         sb += f'#SBATCH --time={parse_time(args.time)}\n'
     else:
         print('no wall time given')
-    sb += f'#SBATCH --ntasks={args.ntasks}\n'
+    sb += f'#SBATCH --ntasks={args.nstasks}\n'
     sb += f'#SBATCH --job-name={args.jobname}\n'
     sb += f'#SBATCH --output=j-%j.out\n'
     sb += f'#SBATCH --error=j-%j.err\n'
-    #sb += f'#SBATCH --mail-user=ericvc@uchicago.edu\n'
-    #sb += f'#SBATCH --mail-type=ALL\n'
     sb += f'#SBATCH --nodelist=ravenwood002\n'
     sb += '\n'
     sb += f'./run_partrace.py -n {args.ntasks} {args.infile}'
-    with open('sbatch_partrace.sbatch','w+') as f:
+    with open(f'sbatch_partrace.sbatch','w+') as f:
         f.write(sb)
 
     subprocess.run(['sbatch','sbatch_partrace.sbatch'])
-
-
 
 def parse_time(time):
     days = int(time//24)
@@ -35,7 +31,7 @@ def parse_time(time):
     else:
         return f'{hrs:0>2}:{mins:0>2}:{secs:0>2}'
 
-if __name__=='__main__':
+if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='submit job to slurm scheduler')
     parser.add_argument('-n','--ntasks',type=int,default=1)
     parser.add_argument('-t','--time',type=float,default=None,help='walltime in hours')
