@@ -18,8 +18,10 @@ import partrace.partraceio as ptio
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('infile')
+parser.add_argument('-n','--nproc',type=int,default=1)
 args = parser.parse_args()
 
+nproc = args.nproc
 params = ptio.read_input(args.infile)
 
 # constants
@@ -37,8 +39,11 @@ NPART = len(LOCS)
 print('particle 0 is at:')
 print(LOCS[0])
 
-MAXSTEP = False
-SOLVER = 'BDF'
+MAXSTEP = True
+SOLVER = 'Radau'
+
+# check number of processors
+print('cpus availables = ',nproc)
 
 # make the output directory if doesn't exist
 if not os.path.exists(OUTPUTDIR):
@@ -61,7 +66,7 @@ def main():
     npart = NPART
 
     # create mesh
-    mesh = pt.create_mesh(fargodir,n=n)
+    mesh = pt.create_mesh(fargodir,n=n) #,regrid=True)
     minr = mesh.yedges.min()
     maxr = mesh.yedges.max()
     print(f'{minr/const.AU = }\t{maxr/const.AU = }')
@@ -77,7 +82,7 @@ def main():
     t0 = T0
     tf = TF
     if MAXSTEP:
-        maxdt = 1/50*const.TWOPI/mesh.get_Omega(minr,0,0)
+        maxdt = 1/10*const.TWOPI/mesh.get_Omega(minr,0,0)
     else:
         maxdt = np.inf
     atol = np.zeros(6)
@@ -94,7 +99,7 @@ def main():
     kw = {'max_step':maxdt,'atol':atol,'rtol':rtol}
     intargs = (t0,tf,planet,kw)
 
-    with mp.Pool() as pool:
+    with mp.Pool(processes=nproc) as pool:
         N = np.arange(npart)
         allargs = [(locs,pargs,intargs,n) for n in N]
         allsols = pool.map(helper_func,allargs)
@@ -143,10 +148,12 @@ def helper_func(args):
     #    savefile = f'{OUTPUTDIR}/history_{n}.npz'
     #else:
     #    savefile = None
+    print('starting particle ',n,flush=True)
     savefile = f'{OUTPUTDIR}/history_{n}.npz'
     t0,tf,planet,kw = intargs
     status,end,time = integrate(t0,tf,p,planet,savefile=savefile,
-        diffusion=DIFFUSION,**kw)
+        diffusion=DIFFUSION,partnum=n,**kw)
+    print('    finished particle ',n,flush=True)
     del(p)
     return status,end,time
 
