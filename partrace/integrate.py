@@ -58,7 +58,7 @@ def add_diffusion(particle,rk):
 
 
 
-def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
+def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**kwargs):
     """ODE solver including random diffusive movement. Similar in
     practice to scipy.integrate.solve_ode, but with added diffusion
     in solver.
@@ -114,8 +114,8 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     n = 0
     touts = np.logspace(7,np.log10(tf),nout)
     #touts = np.logspace(np.log10(YR),np.log10(tf),nout)
-    #touts = np.linspace(500*3.15e7,tf,500)
-    print(f'{touts = }')
+    #touts = np.linspace(500*3.15e7,tf,nout)
+    #print(f'{touts = }')
     while status is None:
         message = rk.step()
         if diffusion:
@@ -144,13 +144,13 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
         if savefile:
             while n<nout and rk.t >= touts[n]:
                 t = touts[n]
-                print(f'{rk.t/3.15e7 = }')
-                print(f'{touts[n]/3.15e7 = }')
+                #print(f'{rk.t/3.15e7 = }')
+                print(f'{partnum}: {touts[n]/3.15e7 = }',flush=True)
                 do = rk.dense_output()
                 y = do(t)
                 ys.append(y)
                 ts.append(t)
-                print(f'time {n}/{nout}',rk.y,'\n',flush=True)
+                #print(f'time {n}/{nout}',rk.y,'\n',flush=True)
                 times = np.array(ts)
                 history = np.stack(ys)
                 np.savez(savefile,times=times,history=history)
@@ -159,13 +159,13 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     # get the last time:
     if savefile and status == 0:
         t = touts[-1]
-        print(f'{rk.t/3.15e7 = }')
-        print(f'{touts[-1]/3.15e7 = }')
+        #print(f'{rk.t/3.15e7 = }')
+        #print(f'{touts[-1]/3.15e7 = }')
         do = rk.dense_output()
         y = do(t)
         ys.append(y)
         ts.append(t)
-        print(f'time {n}/{nout}',rk.y,'\n',flush=True)
+        #print(f'time {n}/{nout}',rk.y,'\n',flush=True)
         times = np.array(ts)
         history = np.stack(ys)
         np.savez(savefile,times=times,history=history)
@@ -197,7 +197,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,**kwargs):
     del(history)
     return ret
 
-def integrate(t0,tf,particle,planet = None,savefile=None,diffusion=True,**kwargs):
+def integrate(t0,tf,particle,planet = None,savefile=None,diffusion=True,partnum=0,**kwargs):
     """
     Do the integration for particle in a mesh including a planet
     from time t0 -> tf. Calls the function solve_ode()
@@ -232,7 +232,7 @@ def integrate(t0,tf,particle,planet = None,savefile=None,diffusion=True,**kwargs
     vx0,vy0,vz0 = particle.vel0
     Y0 = np.array([x0,y0,z0,vx0,vy0,vz0])
     print('integrating')
-    ret = solve_ode(fun,t0,Y0,tf,args=args,savefile=savefile,diffusion=diffusion,**kwargs)
+    ret = solve_ode(fun,t0,Y0,tf,args=args,savefile=savefile,diffusion=diffusion,partnum=partnum,**kwargs)
     return ret
 
 def one_step(particle,planet,**kwargs):
