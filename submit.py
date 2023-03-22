@@ -9,7 +9,7 @@ def main(args):
         sb += f'#SBATCH --time={parse_time(args.time)}\n'
     else:
         print('no wall time given')
-    sb += f'#SBATCH --ntasks={args.nstasks}\n'
+    sb += f'#SBATCH --ntasks={args.ntasks}\n'
     sb += f'#SBATCH --job-name={args.jobname}\n'
     sb += f'#SBATCH --output=j-%j.out\n'
     sb += f'#SBATCH --error=j-%j.err\n'
