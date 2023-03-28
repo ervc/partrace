@@ -157,7 +157,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
                 n+=1
     print(f'Solver stopped, status = {statii[status]}')
     # get the last time:
-    if savefile and status == 0:
+    if status == 0:
         t = touts[-1]
         #print(f'{rk.t/3.15e7 = }')
         #print(f'{touts[-1]/3.15e7 = }')
@@ -168,9 +168,8 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
         #print(f'time {n}/{nout}',rk.y,'\n',flush=True)
         times = np.array(ts)
         history = np.stack(ys)
-        np.savez(savefile,times=times,history=history)
     # get accretion time for accreted particle
-    if savefile and status == 3:
+    elif status == 3:
         t = rk.t
         do = rk.dense_output()
         y = do(t)
@@ -179,7 +178,6 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
         print(f'time {n}/{nout}',rk.y,'\n',flush=True)
         times = np.array(ts)
         history = np.stack(ys)
-        np.savez(savefile,times=times,history=history)
     # convert to arrays
     times = np.array(ts)
     ## use np.stack to convert list of arrays to 2d array
