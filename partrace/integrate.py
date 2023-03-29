@@ -190,9 +190,15 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
         np.savez(savefile,times=times,history=history)
         print(f'saved to {savefile}')
     import math
+    flag = 0
     if any(math.isnan(x) for x in history[-1]):
-        print(ret)
-    if any(math.isnan(x) for x in times[-1]):
+        flag += 1
+    if any(math.isinf(x) for x in history[-1]):
+        flag += 1
+    if math.isnan(times[-1]) or math.isinf(times[-1]):
+        flag += 1
+    if flag > 0:
+        print('INF OR NAN IN RET')
         print(ret)
     ret = (status,history[-1],times[-1])
     del(times)
