@@ -141,20 +141,19 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
                 print(f'ACCRETED! {rk.t/3.15e7 = }')
                 print(f'{touts[n-1]/3.15 = }')
                 print(f'{touts[n]/3.15 = }\n')
-        if savefile:
-            while n<nout and rk.t >= touts[n]:
-                t = touts[n]
-                #print(f'{rk.t/3.15e7 = }')
+        while n<nout and rk.t >= touts[n]:
+            t = touts[n]
+            do = rk.dense_output()
+            y = do(t)
+            ys.append(y)
+            ts.append(t)
+            #print(f'time {n}/{nout}',rk.y,'\n',flush=True)
+            times = np.array(ts)
+            history = np.stack(ys)
+            if savefile:
                 print(f'{partnum}: {touts[n]/3.15e7 = }',flush=True)
-                do = rk.dense_output()
-                y = do(t)
-                ys.append(y)
-                ts.append(t)
-                #print(f'time {n}/{nout}',rk.y,'\n',flush=True)
-                times = np.array(ts)
-                history = np.stack(ys)
                 np.savez(savefile,times=times,history=history)
-                n+=1
+            n+=1
     print(f'Solver stopped, status = {statii[status]}')
     # get the last time:
     if status == 0:
@@ -190,6 +189,11 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
     if savefile:
         np.savez(savefile,times=times,history=history)
         print(f'saved to {savefile}')
+    import math
+    if any(math.isnan(x) for x in history[-1]):
+        print(ret)
+    if any(math.isnan(x) for x in times[-1]):
+        print(ret)
     ret = (status,history[-1],times[-1])
     del(times)
     del(history)
