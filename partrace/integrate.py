@@ -122,7 +122,8 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
         try:
             message = rk.step()
         except ValueError:
-            print('solver failed, setting status to zero')
+            print('solver failed, setting status to negative 2\n' + 
+                 f'Made it to time {times[-1]/3.15e7 = }')
             message = 'failed'
             status = -2
         if diffusion:
