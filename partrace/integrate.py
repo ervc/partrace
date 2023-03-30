@@ -117,7 +117,13 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
     #touts = np.linspace(500*3.15e7,tf,nout)
     #print(f'{touts = }')
     while status is None:
-        message = rk.step()
+        # try-except block catches issue with nan or inf in step
+        # if nan or inf is involved then the sovler has failed
+        try:
+            message = rk.step()
+        except ValueError:
+            message = 'failed'
+            status = -2
         if diffusion:
             add_diffusion(particle,rk)
         particle.update_position(*rk.y[:3])
@@ -141,7 +147,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
                 print(f'ACCRETED! {rk.t/3.15e7 = }')
                 print(f'{touts[n-1]/3.15 = }')
                 print(f'{touts[n]/3.15 = }\n')
-        while n<nout and rk.t >= touts[n]:
+        while (n<nout) and (rk.t>=touts[n]) and (status>=0):
             t = touts[n]
             do = rk.dense_output()
             y = do(t)
