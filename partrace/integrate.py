@@ -3,6 +3,7 @@ Functions to help with integration of particles in the mesh
 """
 
 import numpy as np
+import math
 
 class Solver():
     """Helper class for ODE solution
@@ -123,11 +124,16 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
             message = rk.step()
         except ValueError:
             print('solver failed, setting status to negative 2\n' + 
-                 f'Made it to time {times[-1]/3.15e7 = }')
+                 f'Made it to time {rk.t/3.15e7 = }\n' + 
+                 f'Final position is {rk.y[:3]}')
             message = 'failed'
             status = -2
         if diffusion:
             add_diffusion(particle,rk)
+            if any(math.isnan(i) for i in rk.y):
+                print('diffusion made a value NAN')
+            if any(math.isinf(i) for i in rk.y):
+                print('diffusion made a value INF')
         particle.update_position(*rk.y[:3])
         particle.update_velocity(*rk.y[3:])
         if rk.status == 'finished':
@@ -197,7 +203,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
     if savefile:
         np.savez(savefile,times=times,history=history)
         print(f'saved to {savefile}')
-    import math
+    
     flag = 0
     if any(math.isnan(x) for x in history[-1]):
         flag += 1
