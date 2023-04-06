@@ -15,13 +15,15 @@ import partrace.constants as const
 from partrace.integrate import integrate
 import partrace.partraceio as ptio
 
+# read in arguments
 import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('infile')
 parser.add_argument('-n','--nproc',type=int,default=1)
 args = parser.parse_args()
-
 nproc = args.nproc
+
+# get parameters from input file
 params = ptio.read_input(args.infile)
 
 # constants
@@ -36,14 +38,9 @@ NOUT = params['nout']
 
 LOCS = ptio.read_locations(params['partfile'])
 NPART = len(LOCS)
-print('particle 0 is at:')
-print(LOCS[0])
 
 MAXSTEP = True
 SOLVER = 'Radau'
-
-# check number of processors
-print('cpus availables = ',nproc)
 
 # make the output directory if doesn't exist
 if not os.path.exists(OUTPUTDIR):
@@ -59,6 +56,15 @@ with open(f'{OUTPUTDIR}/variables.out','w+') as f:
     f.write(f'nparts = {NPART}\n')
 
 def main():
+    print('Read infile: ',args.infile)
+    print('Fargodir: ',FARGODIR)
+    print('partfile: ',params["partfile"])
+    print('number of particles: ',NPART)
+    print('particle 0 is at:')
+    print(LOCS[0])
+    # check number of processors
+    print('cpus availables = ',nproc)
+
     # global
     fargodir = FARGODIR
     n = NOUT
