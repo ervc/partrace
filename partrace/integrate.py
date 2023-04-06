@@ -166,8 +166,8 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
                 if nloop%100 == 0:
                     flush = True
                 print(f'{partnum}: t = {rk.t/3.15e7:.2e}, '+
-                    'dt = {rk.step_size/3.15e7:.2e}',
-                    flush=flush)
+                      f'dt = {rk.step_size/3.15e7:.2e}',
+                      flush=flush)
         else:
             while (n<nout) and (rk.t>=touts[n]) and (status is None):
                 t = touts[n]
