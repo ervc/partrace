@@ -150,12 +150,10 @@ def helper_func(args):
     x0,y0,z0 = locs[n]
     mesh,a,rho_s = pargs
     p = pt.create_particle(mesh,x0,y0,z0,a,rho_s)
-    #if n in [0,30,60,90,120,150,180,210,240,270,300,330]:
-    #    savefile = f'{OUTPUTDIR}/history_{n}.npz'
-    #else:
-    #    savefile = None
     print('starting particle ',n,flush=True)
-    savefile = f'{OUTPUTDIR}/history_{n}.npz'
+    savefile = None
+    if n%10 == 0:
+        savefile = f'{OUTPUTDIR}/history_{n}.npz'
     t0,tf,planet,kw = intargs
     status,end,time = integrate(t0,tf,p,planet,savefile=savefile,
         diffusion=DIFFUSION,partnum=n,**kw)
