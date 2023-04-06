@@ -113,8 +113,8 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
     print('starting loop')
     nout = 256
     n = 0
-    touts = np.logspace(7,np.log10(tf),nout)
-    #touts = np.logspace(np.log10(YR),np.log10(tf),nout)
+    touts = 'ALL'
+    #touts = np.logspace(7,np.log10(tf),nout)
     #touts = np.linspace(500*3.15e7,tf,nout)
     #print(f'{touts = }')
     while status is None:
@@ -155,8 +155,35 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
                 print(f'ACCRETED! {rk.t/3.15e7 = }')
                 print(f'{touts[n-1]/3.15 = }')
                 print(f'{touts[n]/3.15 = }\n')
-        while (n<nout) and (rk.t>=touts[n]) and (status is None):
-            t = touts[n]
+        if touts == 'ALL':
+            ys.append(rk.y)
+            ts.append(rk.t)
+            times = np.array(ts)
+            history = np.stack(ys)
+            # uncomment to save checkpoints, adding on time
+            #if savefile:
+            #    print(f'{partnum}: t = {rk.t/3.15e7:.2e}, dt = {rk.step_size/3.15e7:.2e}')
+        else:
+            while (n<nout) and (rk.t>=touts[n]) and (status is None):
+                t = touts[n]
+                do = rk.dense_output()
+                y = do(t)
+                ys.append(y)
+                ts.append(t)
+                #print(f'time {n}/{nout}',rk.y,'\n',flush=True)
+                times = np.array(ts)
+                history = np.stack(ys)
+                if savefile:
+                    print(f'{partnum}: {touts[n]/3.15e7 = }',flush=True)
+                    np.savez(savefile,times=times,history=history)
+                n+=1
+    print(f'Solver stopped, status = {statii[status]}')
+    if touts != 'ALL':
+        # get the last time:
+        if status == 0:
+            t = touts[-1]
+            #print(f'{rk.t/3.15e7 = }')
+            #print(f'{touts[-1]/3.15e7 = }')
             do = rk.dense_output()
             y = do(t)
             ys.append(y)
@@ -164,33 +191,16 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
             #print(f'time {n}/{nout}',rk.y,'\n',flush=True)
             times = np.array(ts)
             history = np.stack(ys)
-            if savefile:
-                print(f'{partnum}: {touts[n]/3.15e7 = }',flush=True)
-                np.savez(savefile,times=times,history=history)
-            n+=1
-    print(f'Solver stopped, status = {statii[status]}')
-    # get the last time:
-    if status == 0:
-        t = touts[-1]
-        #print(f'{rk.t/3.15e7 = }')
-        #print(f'{touts[-1]/3.15e7 = }')
-        do = rk.dense_output()
-        y = do(t)
-        ys.append(y)
-        ts.append(t)
-        #print(f'time {n}/{nout}',rk.y,'\n',flush=True)
-        times = np.array(ts)
-        history = np.stack(ys)
-    # get accretion time for accreted particle
-    elif status == 3:
-        t = rk.t
-        do = rk.dense_output()
-        y = do(t)
-        ys.append(y)
-        ts.append(t)
-        print(f'time {n}/{nout}',rk.y,'\n',flush=True)
-        times = np.array(ts)
-        history = np.stack(ys)
+        # get accretion time for accreted particle
+        elif status == 3:
+            t = rk.t
+            do = rk.dense_output()
+            y = do(t)
+            ys.append(y)
+            ts.append(t)
+            print(f'time {n}/{nout}',rk.y,'\n',flush=True)
+            times = np.array(ts)
+            history = np.stack(ys)
     # convert to arrays
     times = np.array(ts)
     ## use np.stack to convert list of arrays to 2d array
