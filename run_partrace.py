@@ -72,7 +72,7 @@ def main():
     npart = NPART
 
     # create mesh
-    mesh = pt.create_mesh(fargodir,n=n) #,regrid=True)
+    mesh = pt.create_mesh(fargodir,n=n,regrid=True)
     minr = mesh.yedges.min()
     maxr = mesh.yedges.max()
     print(f'{minr/const.AU = }\t{maxr/const.AU = }')
