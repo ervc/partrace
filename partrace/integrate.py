@@ -114,6 +114,7 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
     nout = 256
     n = 0
     touts = 'ALL'
+    nloop = 0
     #touts = np.logspace(7,np.log10(tf),nout)
     #touts = np.linspace(500*3.15e7,tf,nout)
     #print(f'{touts = }')
@@ -161,7 +162,12 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
             times = np.array(ts)
             history = np.stack(ys)
             if savefile:
-                print(f'{partnum}: t = {rk.t/3.15e7:.2e}, dt = {rk.step_size/3.15e7:.2e}')
+                flush = False
+                if nloop%100 == 0:
+                    flush = True
+                print(f'{partnum}: t = {rk.t/3.15e7:.2e}, '+
+                    'dt = {rk.step_size/3.15e7:.2e}',
+                    flush=flush)
         else:
             while (n<nout) and (rk.t>=touts[n]) and (status is None):
                 t = touts[n]
