@@ -1,7 +1,13 @@
 import configparser
 import numpy as np
 
+import os
+
+
 def read_input(f_in):
+    if not os.path.exists(f_in):
+        raise FileNotFoundError(f"Cannot find input file: '{f_in}'")
+
     strkeys = ['fargodir','outputdir','partfile']
     fltkeys = ['t0','tf','partsize','partdens']
     intkeys = ['nout']

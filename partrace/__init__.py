@@ -54,6 +54,10 @@ def create_mesh(fargodir, states='all', n=-1, quiet=False, regrid=False):
     quiet : bool
         print confirmation messages to stdout
         default: False
+
+    Returns
+    -------
+    Mesh
     """
     m = mesh.Mesh(fargodir,states,n,quiet,regrid)
     return m
@@ -76,6 +80,10 @@ def create_particle(mesh,x0,y0,z0=0,a=0.01,rho_s=2.):
     rho_s : float
         particle density in g cm-3
         default: 2.0 g cm-3
+
+    Returns
+    -------
+    Particle
     """
     p = particle.Particle(mesh,x0,y0,z0,a,rho_s)
     return p
@@ -98,11 +106,31 @@ def create_planet(mesh,planet_no=0,name='jupiter'):
         name of planet for tracking if there is more than one planet
         in mesh
         default: 'planet'
+
+    Returns
+    -------
+    Planet
     """
     p = planet.Planet(mesh,planet_no,name)
     return p
 
+def read_params(paramfile):
+    """Helper function for partracio.read_input().
+
+    Parameters
+    ----------
+    paramfile : str
+        Name of parameter file to readin.
+
+    Returns
+    -------
+    dict
+        dictionary of params from param file
+    """
+    return partraceio.read_input(paramfile)
+
 def get_nparts(partfile):
+
     npart = 0
     with open(partfile,'r') as f:
         for line in f:
