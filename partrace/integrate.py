@@ -160,9 +160,8 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
             ts.append(rk.t)
             times = np.array(ts)
             history = np.stack(ys)
-            # uncomment to save checkpoints, adding on time
-            #if savefile:
-            #    print(f'{partnum}: t = {rk.t/3.15e7:.2e}, dt = {rk.step_size/3.15e7:.2e}')
+            if savefile:
+                print(f'{partnum}: t = {rk.t/3.15e7:.2e}, dt = {rk.step_size/3.15e7:.2e}')
         else:
             while (n<nout) and (rk.t>=touts[n]) and (status is None):
                 t = touts[n]
