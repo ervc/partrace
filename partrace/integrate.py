@@ -154,8 +154,6 @@ def solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**k
             if rp<=planet.envelope:
                 status = 3
                 print(f'ACCRETED! {rk.t/3.15e7 = }')
-                print(f'{touts[n-1]/3.15 = }')
-                print(f'{touts[n]/3.15 = }\n')
         if touts == 'ALL':
             ys.append(rk.y)
             ts.append(rk.t)
