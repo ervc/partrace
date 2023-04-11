@@ -81,6 +81,9 @@ class Mesh():
         self.state = {}
         self.interpolators = {}
         self.n = {}
+        self.Stokes_grid = None
+        self.gasdiff_grid = None
+        self.partdiff_grid = None
         if states is None:
             if not quiet:
                 print('Initialized, self.state and self.n are empty,'
@@ -528,6 +531,63 @@ class Mesh():
 
         return interp
 
+    def create_Stokes_grid(self,a,rho_s):
+        """Create a grid of Stokes values on original FARGO grid
+        IMPORTANT! Requires eos=isothermal. otherwise cs is not gasenergy
+        This will be modified later to work for everything
+        """
+        cs = self.state['gasenergy'] # nz,ny,nx
+        rhog = self.state['gasdens'] # nz,ny,nx
+        G = float(self.variables['G']) # scalar
+        Mstar = float(self.variables['MSTAR']) # scalar
+        GM = G*Mstar # scalar
+        Rgrid = np.meshgrid(mesh.zcenters,mesh.ycenters,mesh.xcenters,
+            indexing='ij') # nz,ny,nx
+        R3 = Rgrid*Rgrid*Rgrid # nz,ny,nx
+        omega = np.sqrt(GM/R3) # nz,ny,nx
+        self.Stokes_grid = a*rho_s/(cs*rhog) * omega # shape nz,ny,nx
+        return self.Stokes_grid
+
+    def create_gasdiff_grid(self):
+        """Create a grid of gas diffusivities on og FARGO grid
+        Dg = nu = alpha*cs*H
+        IMPORTANT! Requires eos=isothermal.
+        """
+        if '-DVISCOSITY' in self.variables['FLAGS']:
+            Dg_grid = np.ones_like(self.state['gasdens'])
+        elif '-DALPHAVISCOSITY' in self.variables['FLAGS']:
+            R = np.meshgrid(mesh.zcenters,mesh.ycenters,mesh.xcenters,
+                indexing='ij') # nz,ny,nx
+            ar = float(self.variables['ASPECTRATIO'])
+            fi = float(self.variables['FLARINGINDEX'])
+            R0 = float(self.variables['R0'])
+            H = R*ar*(R/R0)**fi
+            cs = self.state['gasenergy']
+            alpha = float(self.variables['ALPHA'])
+            Dg_grid = alpha*cs*H
+        else:
+            raise Exception("Cannot determine diffusivity, disk has none?")
+        self.gasdiff_grid = Dg_grid
+        return Dg_grid
+
+    def create_partdiff_grid(self,a,rho_s):
+        """Create a grid of particle diffusivites on FARGO grid
+        D = Dg/(1+St^2)
+        """
+        if self.Stokes_grid is None:
+            St = self.create_Stokes_grid(a,rho_s)
+        else:
+            St = self.Stokes_grid
+        if self.gasdiff_grid is None:
+            Dg = self.create_gasdiff_grid()
+        else:
+            Dg = self.gasdiff_grid
+
+        D = Dg/(1+St*St)
+        self.partdiff_grid = D
+        return D
+
+
     def get_scaleheight(self,x,y,z=0):
         """return the scaleheight at given cartesian location"""
         r = np.sqrt(x*x + y*y)
@@ -542,7 +602,7 @@ class Mesh():
         G = float(self.variables['G'])
         Mstar = float(self.variables['MSTAR'])
         GM = G*Mstar
-        r = np.sqrt(x**2 + y**2) # <--- question: +z**2 ?
+        r = np.sqrt(x**2 + y**2 + z**2)
         r3 = r*r*r
         return np.sqrt(GM/r3)
 
