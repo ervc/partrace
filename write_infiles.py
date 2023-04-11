@@ -2,12 +2,12 @@ import numpy as np
 
 from partrace import constants as const
 
-fargodir = '../fargo/outputs/alpha3d_moreaz_cont'
-r = 7 #au
+fargodir = '../partrace_results/fargoout/alpha3_mplan20'
+r = 5.3 #au
 z = 0 #au
 partsize = 1
-noutput = 200
-nparts = 16
+noutput = 50
+nparts = 10
 
 partfile = f'inputs/test_particles_r{r}_z{z}.in'
 inputfile = f'inputs/test_params_r{r}_z{z}_a{partsize}_n{noutput}.ini'
@@ -15,11 +15,11 @@ outputdir = f'particleout/test_{fargodir.split("/")[-1]}_r{r}_z{z}_a{partsize}_n
 
 params = {}
 
-params['diffusion'] = False
+params['diffusion'] = True
 params['fargodir'] = fargodir
 
 params['t0'] = 0
-params['tf'] = 1e4*const.YR
+params['tf'] = 1e3*const.YR
 params['partsize'] = partsize # cm
 params['partdens'] = 2 # g cm-3
 
