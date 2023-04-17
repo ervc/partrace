@@ -53,7 +53,7 @@ class Particle(object):
 
         r = np.sqrt(x*x + y*y)
 
-        self.create_particle_grids()
+        # self.create_particle_grids()
 
         # # initialize with keplerian velocity
         # vk = r*mesh.get_Omega(x,y,z) - r*float(mesh.variables['OMEGAFRAME'])
@@ -99,7 +99,6 @@ class Particle(object):
         vx = vr*np.cos(phi) - vphi*np.sin(phi)
         vy = vr*np.sin(phi) + vphi*np.cos(phi)
         vz = 0
-        print(vx,vy,vz)
         return np.array([vx,vy,vz])
 
     def create_particle_grids(self):

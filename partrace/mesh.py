@@ -505,7 +505,7 @@ class Mesh():
         extradim = None
         if len(stateshape) > 3:
             extradim = stateshape[-1]
-            print('found an extra dimension! shape = ',stateshape)
+            # print('found an extra dimension! shape = ',stateshape)
 
         # create the array and fill in extra X columns
         if extradim is None:
@@ -598,7 +598,89 @@ class Mesh():
         else:
             Dg = self.state['gasdiff']
 
+        self.state['partdiff'] = Dg/(1+St*St)
+        self.create_partdiff_interp()
         return Dg/(1+St*St)
+
+    def create_partdiff_interp(self):
+        self.interpolators['partdiff'] = self.create_interpolator('partdiff')
+
+    def get_partdiff_at(self,x,y,z):
+        phi = np.arctan2(y,x)
+        r = np.sqrt(x*x + y*y + z*z)
+        theta = np.arccos(z/r)
+        interp = self.interpolators['partdiff']
+        return interp(np.stack([theta,r,phi],axis=-1))
+
+    def get_dDdphi(self):
+        if 'partdiff' not in self.state:
+            self.create_partdiff_grid
+        diff = self.state['partdiff']
+        phi = self.xgrid
+
+        dDdphi = np.zeros_like(diff)
+        dDdphi[:,:,1:-1] = (diff[:,:,2:]-diff[:,:,:-2])/(phi[:,:,2:]-diff[:,:,:-2])
+        dDdphi[:,:,0] = (diff[:,:,1]-diff[:,:,-1])/(phi[:,:,1]-phi[:,:,-1]-TWOPI)
+        dDdphi[:,:,-1] = (diff[:,:,0]-diff[:,:,-2])/(phi[:,:,0]-phi[:,:,-2]+TWOPI)
+
+        return dDdphi
+
+    def get_dDdr(self):
+        if 'partdiff' not in self.state:
+            self.create_partdiff_grid
+        diff = self.state['partdiff']
+        r = self.ygrid
+
+        dDdr = np.zeros_like(diff)
+        dDdr[:,1:-1] = (diff[:,2:]-diff[:,:-2])/(r[:,2:]-r[:,:-2])
+        dDdr[:,0] = (diff[:,1]-diff[:,0])/(r[:,1]-r[:,0])
+        dDdr[:,-1] = (diff[:,-1]-diff[:,-2])/(r[:,-1]-r[:,-2])
+
+        return dDdr
+
+    def get_dDdtheta(self):
+        if 'partdiff' not in self.state:
+            self.create_partdiff_grid
+        diff = self.state['partdiff']
+        theta = self.zgrid
+
+        dDdtheta = np.zeros_like(diff)
+        dDdtheta[1:-1] = (diff[2:]-diff[:-2])/(theta[2:]-theta[:-2])
+        dDdtheta[0] = (diff[1]-diff[0])/(theta[1]-theta[0])
+        dDdtheta[-1] = (diff[-1]-diff[-2])/(theta[-1]-theta[-2])
+
+        return dDdtheta
+
+    def create_diff_grad(self):
+        dDdphi   = self.get_dDdphi()
+        dDdr     = self.get_dDdr()
+        dDdtheta = self.get_dDdtheta()
+
+        arrs = (dDdphi,dDdr,dDdtheta)
+        self.state['graddiff_polar'] = np.stack(arrs,axis=-1)
+
+        phi   = self.xgrid
+        r     = self.ygrid
+        theta = self.zgrid
+
+        # chain rule
+        dphidx = -np.sin(phi)/r/np.sin(theta)
+        dphidy =  np.cos(phi)/r/np.sin(theta)
+        dphidz =  0
+        drdx = np.cos(phi)*np.sin(theta)
+        drdy = np.sin(phi)*np.sin(theta)
+        drdz = np.cos(theta)
+        dthetadx =  np.cos(phi)*np.cos(theta)/r
+        dthetady =  np.sin(phi)*np.cos(theta)/r
+        dthetadz = -np.sin(theta)/r
+
+        dDdx = dDdphi*dphidx + dDdr*drdx + dDdtheta*dthetadx
+        dDdy = dDdphi*dphidy + dDdr*drdy + dDdtheta*dthetady
+        dDdz = dDdphi*dphidz + dDdr*drdz + dDdtheta*dthetadz
+
+        cartarrs = (dDdx,dDdy,dDdz)
+        self.state['graddiff'] = np.stack(cartarrs,axis=-1)
+        return self.state['graddiff']
 
 
     def get_scaleheight(self,x,y,z=0):

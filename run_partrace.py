@@ -12,7 +12,7 @@ from time import time
 # partrace imports
 import partrace as pt
 import partrace.constants as const
-from partrace.integrate import integrate
+from partrace.integrate import integrate, create_mega_interpolator
 import partrace.partraceio as ptio
 
 # read in arguments
@@ -56,12 +56,12 @@ with open(f'{OUTPUTDIR}/variables.out','w+') as f:
     f.write(f'nparts = {NPART}\n')
 
 def main():
+    print(f'*** PARTRACE {pt.__version__} ***')
     print('Read infile: ',args.infile)
     print('Fargodir: ',FARGODIR)
     print('partfile: ',params["partfile"])
+    print('output dirrectory: ',params["outputdir"])
     print('number of particles: ',NPART)
-    print('particle 0 is at:')
-    print(LOCS[0])
     # check number of processors
     print('cpus availables = ',nproc)
 
@@ -72,17 +72,15 @@ def main():
     npart = NPART
 
     # create mesh
-    mesh = pt.create_mesh(fargodir,n=n,regrid=True)
+    mesh = pt.create_mesh(fargodir,n=n,regrid=False)
     minr = mesh.yedges.min()
     maxr = mesh.yedges.max()
-    print(f'{minr/const.AU = }\t{maxr/const.AU = }')
     minv = np.nanmin(np.abs(mesh.state['gasvx']))
     maxv = np.nanmax(np.abs(mesh.state['gasvx']))
     n = mesh.n['gasdens']
 
     # readin planet
     planet = pt.create_planet(mesh,0,'Jupiter')
-    # planet = None
 
     # set up solver params
     t0 = T0
@@ -91,18 +89,21 @@ def main():
         maxdt = 1/10*const.TWOPI/mesh.get_Omega(minr,0,0)
     else:
         maxdt = np.inf
-    atol = np.zeros(6)
-    atol[:3] += 1e-3*minr  # xtol is within 1e-3 of smallest r
-    atol[3:] += 1e-3*maxv  # vtol is within 1e-3 of largest velocity
-    rtol = 1e-6
 
     # constant partical parameters:
     a = A    # size in cm
     rho_s = RHOS  # density in g/cm^3
 
+    print(f'particle size, density = {a} cm, {rho_s} g cm-3')
+
+    # create the mega interpolator
+    print('Creating Mega Interpolator')
+    mesh.MegaInterp = create_mega_interpolator(mesh,a,rho_s)
+    print('Done!\n')
+
     locs = LOCS
     pargs = (mesh,a,rho_s)
-    kw = {'max_step':maxdt,'atol':atol,'rtol':rtol}
+    kw = {'max_step':maxdt}
     intargs = (t0,tf,planet,kw)
 
     with mp.Pool(processes=nproc) as pool:
@@ -119,7 +120,8 @@ def main():
         ends[i] = hist[:3]
         starts[i] = locs[i]
         times[i] = time
-    np.savez(f'{OUTPUTDIR}/allparts.npz',starts=starts,ends=ends,status=statii,times=times)
+    np.savez(f'{OUTPUTDIR}/allparts.npz',starts=starts,ends=ends,
+            status=statii,times=times)
     print('all done:')
     print('statuses: ',statii)
     print(f'successes : {count_success(statii)}/'
@@ -152,10 +154,10 @@ def helper_func(args):
     p = pt.create_particle(mesh,x0,y0,z0,a,rho_s)
     print('starting particle ',n,flush=True)
     savefile = None
-    if n%10 == 0:
+    if n%1 == 0:
         savefile = f'{OUTPUTDIR}/history_{n}.npz'
     t0,tf,planet,kw = intargs
-    status,end,time = integrate(t0,tf,p,planet,savefile=savefile,
+    status,end,time = integrate(t0,tf,p,planet,mesh.MegaInterp,savefile=savefile,
         diffusion=DIFFUSION,partnum=n,**kw)
     print('    finished particle ',n,flush=True)
     del(p)

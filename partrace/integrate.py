@@ -38,44 +38,17 @@ def unstack(a, axis=0):
     """
     return np.moveaxis(a, axis, 0)
 
-
-def fun(t,Y,particle,planet,diffusion=True):
-    """Time derivative at time t of 6d pos vector Y.
-    """
-    particle.update_position(*Y[:3])
-    particle.update_velocity(*Y[3:])
-    if diffusion:
-        vx,vy,vz = particle.get_veff()
-    else:
-        vx,vy,vz = particle.vel
-    ax,ay,az = particle.total_accel(planet)
-    return np.array([vx,vy,vz,ax,ay,az])
-
-
-def add_diffusion(particle,rk):
-    """Helper function to add random diffusion to integration"""
-    rng = np.random.default_rng()
-    R = rng.random(3) * 2 - 1 # random number between -1 and 1
-    if particle.mesh.ndim == 2:
-        # if we're in 2d then no random motion in z direction
-        R[2] = 0.
-    xi = 1./3.
-    D = particle.get_particleDiffusivity()
-    dt = rk.step_size
-    rk.y[:3] += R*(2*D*dt/xi)**(1/2)
-
-def make_megagrid(particle):
+def make_megagrid(mesh,a,rho_s):
     """Create one grid with rho_g, v_g, cs, grad.rho_g, D, grad.D
     Shape will be (nz,ny,nx,12)
     """
-    mesh = particle.mesh
     # collect the grids
     rhogas = mesh.state['gasdens']
     velgasx, velgasy, velgasz = mesh.get_cartvel_grid()
     cs = mesh.state['gasenergy']
     gradrhox, gradrhoy, gradrhoz = unstack(mesh.state['gradrho'],axis=-1)
-    D = particle.diff_grid
-    gradDx, gradDy, gradDz = unstack(particle.graddiff,axis=-1)
+    D = mesh.create_partdiff_grid(a,rho_s)
+    gradDx, gradDy, gradDz = unstack(mesh.create_diff_grad(),axis=-1)
 
     arrs = (rhogas,   velgasx,  velgasy, velgasz, cs,     gradrhox,
             gradrhoy, gradrhoz, D,       gradDx,  gradDy, gradDz)
@@ -86,7 +59,7 @@ def unpack_megagrid(megagrid):
     arrs = unstack(megagrid,axis=-1)
     return arrs
 
-def create_mega_interpolator(particle):
+def create_mega_interpolator(mesh,a,rho_s):
     """Create an interpolator to find the 12 needed variables at any 
     any point in the MegaGrid(TM). Follows from mesh.create_interpolator,
     see that function for more in depth methodology.
@@ -94,8 +67,7 @@ def create_mega_interpolator(particle):
     from scipy.interpolate import RegularGridInterpolator
     from .constants import PI,TWOPI
 
-    mesh = particle.mesh
-    MegaGrid = make_megagrid(particle)
+    MegaGrid = make_megagrid(mesh,a,rho_s)
     megashape = MegaGrid.shape
     nargs = megashape[-1]
 
@@ -148,24 +120,34 @@ def use_interp(interp,x,y,z):
     return interp(np.stack([theta,r,phi],axis=-1))
 
 
-def new_solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**kwargs):
+def new_solve_ode(t0,y0,tf,particle,planet,MegaInterp,
+        savefile=False,diffusion=True,partnum=0,**kwargs):
     """New ODE solver include random motion using MegaGrid
     interpolation(TM). Forward solve integration using adaptive timestep
     and include diffusion.
 
     Parameters
     ----------
-    fun : function
-        time derivative of y, of form fun(t,y,*args) = d/dt y(t)
     t0 : float
         initial time of integration
     y0 : float or (n,) array
         initial conditions
     tf : float
         end of integration. sets direction of integral
-    args : tuple
-        args to pass to fun(). If only one arg, format like args=(arg,).
-        This should be (particle,planet) for particle default fun()
+    particle : Particle
+        particle to be integrated through the mesh
+    planet : Planet
+        Planet in the mesh (if it exists)
+    MegaInterp : interpolator
+        Mega interpolator from create_mega_interpolator. Required for
+        integration
+    savefile : str or bool
+        If str, save output to savefile. Otherwise if False do not save
+        output to file, but do return final position
+    diffusion : bool
+        Include diffusion in integration?
+    partnum : int
+        particle number for keeping track during integration
     kwargs : optional keyword arguments for solving. 
         This includes:
             max_step : float
@@ -175,13 +157,7 @@ def new_solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0
     Solver object
     """
     from .constants import YR,TWOPI
-    particle,planet = args
     mesh = particle.mesh
-    def f(t,y):
-        if args is not None:
-            return fun(t,y,*args,diffusion)
-        else:
-            return fun(t,y,diffusion)
 
     # setup
     maxdt = np.inf
@@ -218,10 +194,6 @@ def new_solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0
     omegaframe = float(mesh.variables['OMEGAFRAME'])
     Omegaf = np.array([0,0,omegaframe])
 
-    # get mega interpolator
-    print('making MegaInterp')
-    MegaInterp = create_mega_interpolator(particle)
-
     # dYdt
     def f(t,Y):
         """Return the derivative of dYdt and the maximum d/dt"""
@@ -256,7 +228,6 @@ def new_solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0
         # Epstein gas drag
         U = V - Vg
         Adrag = -(rho*cs)/(rho_s*a)*U
-        # Adrag = 0
         # grav acceleration
         Agravstar = -G*Mstar/np.linalg.norm(X-Xstar)**3 * (X-Xstar)
         Agravpl = -G*Mpl/np.linalg.norm(X-Xpl)**3 * (X-Xpl)
@@ -302,88 +273,50 @@ def new_solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0
 
     ##### MAIN LOOP #####
     print('starting loop')
-    MAXN = 1e8
+    checkpoints = np.linspace(t0,tf,20)
+    ncheck = 0
+    MAXN = np.inf
     nloop = 0
     dt = 0
     while status is None:
-        print(f'{time/YR:.4e}/{tf/YR:.4e} : last_step = {dt/YR:.2e}\r',
-                end='',flush=True)
+        # print(f'{time/YR:.4e}/{tf/YR:.4e} : last_step = {dt/YR:.2e}\r',
+                # end='',flush=True)
+        if time > checkpoints[ncheck]:
+            print(f'{partnum = }, {time/YR = :.3e}, {time/tf*100:.2f}% done',flush=True)
+            ncheck += 1
 
         Xim = Yim[:3] # current position of particle
         Vim = Yim[3:] # current velocity of particle
         rim = np.linalg.norm(Xim)
         omega = np.sqrt(G*Mstar/np.linalg.norm(Xim)**3)
 
-        # # megagrid reference
-        # # arrs = (rhogas,   velgasx,  velgasy, velgasz, cs,     gradrhox,
-        # #         gradrhoy, gradrhoz, D,       gradDx,  gradDy, gradDz)
+        # megagrid reference
+        # arrs = (rhogas,   velgasx,  velgasy, velgasz, cs,     gradrhox,
+        #         gradrhoy, gradrhoz, D,       gradDx,  gradDy, gradDz)
         rho,vgx,vgy,vgz,cs,gradrhox,gradrhoy,gradrhoz, \
             D,gradDx,gradDy,gradDz = use_interp(MegaInterp,*Xim)[0]
 
-        # tstop = (rho_s*a)/(rho*cs)
-        # St = tstop*omega
-
-        Vg = np.array([vgx,vgy,vgz])
-        Gradrho = np.array([gradrhox,gradrhoy,gradrhoz])
+        # need gradD for xprime calc
         GradD = np.array([gradDx,gradDy,gradDz])
 
-        # ### get veff
-        # if diffusion:
-        #     Vrho = D/rho*Gradrho
-        #     Vdiff = GradD
-        #     Veff = Vim + Vrho + Vdiff
-        # else:
-        #     Veff = Vim
-
-        # ### get accelerations
-        # # Epstein gas drag
-        # U = Vim - Vg
-        # Adrag = -(rho*cs)/(rho_s*a)*U
-        # # Adrag = 0
-        # # grav acceleration
-        # Agravstar = -G*Mstar/np.linalg.norm(Xim-Xstar)**3 * (Xim-Xstar)
-        # Agravpl = -G*Mpl/np.linalg.norm(Xim-Xpl)**3 * (Xim-Xpl)
-        # Agrav = Agravstar + Agravpl
-        # # cent acceleration
-        # Acent = -2*np.cross(Omegaf,Vim) - np.cross(Omegaf,np.cross(Omegaf,Xim))
-        # # total
-        # Atot = Adrag + Agrav + Acent
-
-        # # 6D vector = [veffx,veffy,veffx,atotx,atoty,atotz]
-        # dYdt = np.array([*Veff,*Atot])
-
+        # get time derivative and max timestep possible
         dYdt,dt = f(time,Yim)
-
-        # ### find what dt should be
-        # dtlims = [
-        #     ramp_in(nloop), # slowly ramp up dt at start
-        #     tf-time, # check if at the end
-        #     maxdt, # hard limit
-        #     1/50 * TWOPI/omega, # orbital limit
-        #     1/10 * tstop, # limit on stopping time
-        # ]
-        # if diffusion:
-        #     dtlims += [
-        #         TWOPI*rim/np.linalg.norm(Vdiff) * 1.e-6, # limit on grad.D
-        #         TWOPI*rim/np.linalg.norm(Vrho)  * 1.e-5, # limit on grad.rho
-        #     ]
-
-        # dt = min(dtlims)
+        # further limit dt with constant time limits (if need be)
         dt = min([
             dt,
             ramp_in(nloop), # slowly ramp up dt at start
             tf-time, # check if at the end
             maxdt, # hard limit
             ])
-        # print('limiting dt: ',np.argmin(np.array(dtlims)))
 
         ### integrate
-        # Yi = Yim + dYdt*dt
         Yi = rkstep(f,time,Yim,dt)
         if diffusion:
             ### find what X' is
+            rho,vgx,vgy,vgz,cs,gradrhox,gradrhoy,gradrhoz, \
+                D,gradDx,gradDy,gradDz = use_interp(MegaInterp,*Xim)[0]
             Xprime = Xim + 0.5*GradD*dt
-            Dxprime = particle.get_diff_at(*Xprime)
+            Dxprime = mesh.get_partdiff_at(*Xprime)[0]
             ### random numbers
             rng = np.random.default_rng()
             R = np.zeros(6)
@@ -396,28 +329,29 @@ def new_solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0
         ys.append(Yi)
         ts.append(time)
 
+        # check status of integration
         if time >= tf:
             status = 0 # finished
         ri = np.linalg.norm(Yi[:3])
         if ri <= np.nanmin(particle.mesh.ycenters):
-            status = 1
+            status = 1 # inner edge
         elif ri >= np.nanmax(particle.mesh.ycenters):
-            status = 2
+            status = 2 # outer edge
         if planet is not None:
             xp,yp,zp = Yi[:3]-Xpl
             rp = np.sqrt(xp*xp + yp*yp + zp*zp)
             if rp<=planet.envelope:
-                status = 3
-                print(f'ACCRETED! {time/YR = }')
-
-        # setup for the next timestep
-        Yim = Yi
+                status = 3 # accreted
+                # print(f'ACCRETED! {time/YR = }')
 
         # make sure the integrator is not failing
         if status is None and any([math.isnan(i) or math.isinf(i) for i in Yi]):
-            status = -1
+            status = -1 # failed
         if nloop > MAXN:
-            status = -2
+            status = -2 # other
+
+        # setup for the next timestep
+        Yim = Yi
 
         nloop+=1
     print('\n')
@@ -436,12 +370,65 @@ def new_solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0
     del(history)
     return ret
 
+def integrate(t0,tf,particle,planet=None,MegaInterp=None,savefile=None,
+        diffusion=True,partnum=0,**kwargs):
+    """
+    Do the integration for particle in a mesh including a planet
+    from time t0 -> tf. Calls the function solve_ode()
 
+    Parameters
+    ----------
+    t0 : float
+        start time of integration
+    tf : float
+        end time of integration
+    particle : Particle
+        particle class that will be integrated in time
+    planet : Planet
+        Planet to consider if there is one in the mesh
+        default: None
+    MegaInterp : Interpolator
+        MegaInterpolator to make interpolations go much faster. See
+        create_mega_interpolator() for details
+    savefile : str
+        if not None, output integration results as compressed npz file
+        with name savefile
+    diffusion : bool
+        Include diffusion in integration?
+    partnum : int
+        particle number for keeping track during integration
+    kwargs : optional keyword arguments to pass to solve_ode()
+        This includes:
+            max_step : float
 
+    Returns
+    -------
+    tuple
+        contains the ending status, final position, and
+        final time of integration
 
-        
+    """
+    x0,y0,z0 = particle.pos0
+    vx0,vy0,vz0 = particle.vel0
+    Y0 = np.array([x0,y0,z0,vx0,vy0,vz0])
+    print('integrating')
+    ret = new_solve_ode(t0,Y0,tf,particle,planet,MegaInterp,
+            savefile=savefile,diffusion=diffusion,partnum=partnum,**kwargs)
+    return ret
 
+def one_step(particle,planet,**kwargs):
+    """Debugging function to take only one step at a time."""
+    x0,y0,z0 = particle.pos0
+    print('particle X0, V0')
+    print(x0,y0,z0)
+    vx0,vy0,vz0 = particle.vel0
+    print(vx0,vy0,vz0)
+    Y0 = np.array([x0,y0,z0,vx0,vy0,vz0])
 
+    y1 = fun(0,Y0,particle,planet,kwargs['diffusion'])
+    print('dY0/dt')
+    print(y1)
+    
 def old_solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0,**kwargs):
     """ODE solver including random diffusive movement. Similar in
     practice to scipy.integrate.solve_ode, but with added diffusion
@@ -615,55 +602,3 @@ def old_solve_ode(fun,t0,y0,tf,args=None,savefile=False,diffusion=True,partnum=0
     del(times)
     del(history)
     return ret
-
-def integrate(t0,tf,particle,planet = None,savefile=None,diffusion=True,partnum=0,**kwargs):
-    """
-    Do the integration for particle in a mesh including a planet
-    from time t0 -> tf. Calls the function solve_ode()
-
-    Parameters
-    ----------
-    t0 : float
-        start time of integration
-    tf : float
-        end time of integration
-    particle : Particle
-        particle class that will be integrated in time
-    planet : Planet
-        Planet to consider if there is one in the mesh
-        default: None
-    savefile : str
-        if not None, output integration results as compressed npz file
-        with name savefile
-    kwargs : optional keyword arguments to pass to solve_ode()
-        This includes:
-            max_step : float
-            rtol, atol : float or array_like
-            vectorized : bool
-
-    Returns
-    -------
-    Solver object
-
-    """
-    args = (particle,planet)
-    x0,y0,z0 = particle.pos0
-    vx0,vy0,vz0 = particle.vel0
-    Y0 = np.array([x0,y0,z0,vx0,vy0,vz0])
-    print('integrating')
-    ret = new_solve_ode(fun,t0,Y0,tf,args=args,savefile=savefile,diffusion=diffusion,partnum=partnum,**kwargs)
-    return ret
-
-def one_step(particle,planet,**kwargs):
-    """Debugging function to take only one step at a time."""
-    x0,y0,z0 = particle.pos0
-    print('particle X0, V0')
-    print(x0,y0,z0)
-    vx0,vy0,vz0 = particle.vel0
-    print(vx0,vy0,vz0)
-    Y0 = np.array([x0,y0,z0,vx0,vy0,vz0])
-
-    y1 = fun(0,Y0,particle,planet,kwargs['diffusion'])
-    print('dY0/dt')
-    print(y1)
-    

@@ -68,7 +68,7 @@ class Planet():
         self.envelope = self.get_envelope_radius()
         if not mesh.quiet:
             print(f'Planet {self.name} read in from {self.fname}')
-            print(f'  planet is located at {self.pos}')
+            print(f'  planet is located at {self.pos}\n')
 
     def read_data(self):
         """reads in data from planet file and stores as class values"""
