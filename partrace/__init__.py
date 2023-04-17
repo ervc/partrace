@@ -129,6 +129,10 @@ def read_params(paramfile):
     """
     return partraceio.read_input(paramfile)
 
+def unstack(a,axis=0):
+    """alias for integrate.unstack()"""
+    return integrate.unstack(a,axis)
+
 def get_nparts(partfile):
 
     npart = 0

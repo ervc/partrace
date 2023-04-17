@@ -76,14 +76,13 @@ class Mesh():
             self.rescale_variables()
             self.rescaled = True
         self.get_domain()
+        self.zgrid,self.ygrid,self.xgrid = np.meshgrid(self.zcenters,
+            self.ycenters,self.xcenters,indexing='ij')
         self.quiet = quiet
         self.regrid = regrid
         self.state = {}
         self.interpolators = {}
         self.n = {}
-        self.Stokes_grid = None
-        self.gasdiff_grid = None
-        self.partdiff_grid = None
         if states is None:
             if not quiet:
                 print('Initialized, self.state and self.n are empty,'
@@ -99,6 +98,17 @@ class Mesh():
                     self.read_state(state,n)
                 # create an interpolator to get values off grid
                 self.interpolators[state] = self.create_interpolator(state)
+            # create grid for gas diffusivity
+            if 'gasenergy' in self.state:
+                print('creating gasdiff grid')
+                self.create_gasdiff_grid()
+                self.interpolators['gasdiff'] = self.create_interpolator('gasdiff')
+            # get grid of rho gradient
+            if 'gasdens' in self.state:
+                print('creating gradrho grid')
+                self.create_rho_grad_grid()
+                self.interpolators['gradrho'] = self.create_interpolator('gradrho')
+                self.interpolators['gradrho_polar'] = self.create_interpolator('gradrho_polar')
             if not quiet:
                 outstr = ('Initialized, self.states contains:\n'
                     + f'{list(self.state.keys())}\n'
@@ -491,8 +501,17 @@ class Mesh():
         # periodic boundary conditions for x axis
         X = np.zeros(len(self.xcenters)+2)
 
+        stateshape = self.state[state].shape
+        extradim = None
+        if len(stateshape) > 3:
+            extradim = stateshape[-1]
+            print('found an extra dimension! shape = ',stateshape)
+
         # create the array and fill in extra X columns
-        arr = np.zeros((len(Z),len(Y),len(X)))
+        if extradim is None:
+            arr = np.zeros((len(Z),len(Y),len(X)))
+        else:
+            arr = np.zeros((len(Z),len(Y),len(X),extradim))
         for i in range(self.nx):
             X[i+1] = self.xcenters[i]
             arr[0:lenz,:,i+1] = self.state[state][:,:,i]
@@ -541,12 +560,10 @@ class Mesh():
         G = float(self.variables['G']) # scalar
         Mstar = float(self.variables['MSTAR']) # scalar
         GM = G*Mstar # scalar
-        Rgrid = np.meshgrid(mesh.zcenters,mesh.ycenters,mesh.xcenters,
-            indexing='ij') # nz,ny,nx
+        Rgrid = self.ygrid # nz,ny,nx
         R3 = Rgrid*Rgrid*Rgrid # nz,ny,nx
         omega = np.sqrt(GM/R3) # nz,ny,nx
-        self.Stokes_grid = a*rho_s/(cs*rhog) * omega # shape nz,ny,nx
-        return self.Stokes_grid
+        return a*rho_s/(cs*rhog) * omega 
 
     def create_gasdiff_grid(self):
         """Create a grid of gas diffusivities on og FARGO grid
@@ -556,8 +573,7 @@ class Mesh():
         if '-DVISCOSITY' in self.variables['FLAGS']:
             Dg_grid = np.ones_like(self.state['gasdens'])
         elif '-DALPHAVISCOSITY' in self.variables['FLAGS']:
-            R = np.meshgrid(mesh.zcenters,mesh.ycenters,mesh.xcenters,
-                indexing='ij') # nz,ny,nx
+            R = self.ygrid # nz,ny,nx
             ar = float(self.variables['ASPECTRATIO'])
             fi = float(self.variables['FLARINGINDEX'])
             R0 = float(self.variables['R0'])
@@ -567,25 +583,22 @@ class Mesh():
             Dg_grid = alpha*cs*H
         else:
             raise Exception("Cannot determine diffusivity, disk has none?")
-        self.gasdiff_grid = Dg_grid
-        return Dg_grid
+        self.state['gasdiff'] = Dg_grid
+        return self.state['gasdiff']
 
-    def create_partdiff_grid(self,a,rho_s):
+    def create_partdiff_grid(self,a,rho_s,St=None):
         """Create a grid of particle diffusivites on FARGO grid
         D = Dg/(1+St^2)
         """
-        if self.Stokes_grid is None:
+        if St is None:
             St = self.create_Stokes_grid(a,rho_s)
-        else:
-            St = self.Stokes_grid
-        if self.gasdiff_grid is None:
+
+        if 'gasdiff' not in self.state:
             Dg = self.create_gasdiff_grid()
         else:
-            Dg = self.gasdiff_grid
+            Dg = self.state['gasdiff']
 
-        D = Dg/(1+St*St)
-        self.partdiff_grid = D
-        return D
+        return Dg/(1+St*St)
 
 
     def get_scaleheight(self,x,y,z=0):
@@ -619,18 +632,19 @@ class Mesh():
         """Determine the diffusivity (aka viscosity) at a given location
         D = alpha*cs*H = alpha*H**2*omega = nu
         """
-        if '-DVISCOSITY' in self.variables['FLAGS']:
-            return np.ones_like(x)*float(self.variables['NU'])
-        elif '-DALPHAVISCOSITY' in self.variables['FLAGS']:
-            H = self.get_scaleheight(x,y,z)
-            cs = self.get_soundspeed(x,y,z)
-            alpha = float(self.variables['ALPHA'])
-            return alpha*cs*H
-        else:
-            if not self.quiet:
-                print('Viscosity cannot be determined from variables.'
-                    +' Using D=0')
-            return 0
+        return self.get_state_from_cart('gasdiff',x,y,z)
+        # if '-DVISCOSITY' in self.variables['FLAGS']:
+        #     return np.ones_like(x)*float(self.variables['NU'])
+        # elif '-DALPHAVISCOSITY' in self.variables['FLAGS']:
+        #     H = self.get_scaleheight(x,y,z)
+        #     cs = self.get_soundspeed(x,y,z)
+        #     alpha = float(self.variables['ALPHA'])
+        #     return alpha*cs*H
+        # else:
+        #     if not self.quiet:
+        #         print('Viscosity cannot be determined from variables.'
+        #             +' Using D=0')
+        #     return 0
 
     def sigma(self):
         """Return surface density array, shape (mesh.ny, mesh.nx)"""
@@ -675,6 +689,15 @@ class Mesh():
             rho = self.get_state_from_cart('gasdens',x,y,z)
         return rho
 
+    def get_cartvel_grid(self):
+        phi   = self.xgrid
+        r     = self.ygrid
+        theta = self.zgrid
+        phidot   = self.state['gasvx']
+        rdot     = self.state['gasvy']
+        thetadot = self.state['gasvz']
+        return self._vel_sphere2cart(phi,r,theta,phidot,rdot,thetadot)
+
     def get_gas_vel(self,x,y,z=0):
         """Return the cartesian gas velocity at given location"""
         if self.variables['COORDINATES'] == 'cylindrical':
@@ -713,24 +736,95 @@ class Mesh():
             dDdz = np.zeros_like(x)
         return dDdx,dDdy,dDdz
 
+    def get_drho_dphi(self):
+        rho = self.state['gasdens']
+        phi = self.xgrid
+        drhodphi = np.zeros_like(rho)
+        # get difference centered on cell for all except edges
+        drhodphi[:,:,1:-1] = (rho[:,:,2:]-rho[:,:,:-2])/(phi[:,:,2:]-phi[:,:,:-2])
+        # edges (periodic)
+        # adjust by twopi because of wraparound
+        drhodphi[:,:,0] = (rho[:,:,1]-rho[:,:,-1])/(phi[:,:,1]-phi[:,:,-1]-TWOPI)
+        # add an extra two pi because phi0 = -pi+1/2d and phi-2 = pi-3/2d
+        # so difference should be 2d, but 
+        # -pi+1/2d - pi-3/2d = -2pi + 2d
+        drhodphi[:,:,-1] = (rho[:,:,0]-rho[:,:,-2])/(phi[:,:,0]-phi[:,:,-2]+TWOPI)
+        return drhodphi
+
+    def get_drho_dr(self):
+        rho = self.state['gasdens']
+        R = self.ygrid
+        drhodr = np.zeros_like(rho)
+        # differences except at edges
+        drhodr[:,1:-1,:] = (rho[:,2:,:]-rho[:,:-2,:])/(R[:,2:,:]-R[:,:-2,:])
+        # forward or backward integrate to get edges
+        drhodr[:,0,:] = (rho[:,1,:]-rho[:,0,:])/(R[:,1,:]-R[:,0,:])
+        drhodr[:,-1,:] = (rho[:,-1,:]-rho[:,-2,:])/(R[:,-1,:]-R[:,-2,:])
+        return drhodr
+
+    def get_drho_dtheta(self):
+        rho = self.state['gasdens']
+        T = self.zgrid
+        drhodtheta = np.zeros_like(rho)
+        # differences except at edges
+        drhodtheta[1:-1] = (rho[2:]-rho[:-2])/(T[2:]-T[:-2])
+        # forward or backward integrate to get edges
+        drhodtheta[0] = (rho[1]-rho[0])/(T[1]-T[0])
+        drhodtheta[-1] = (rho[-1]-rho[-2])/(T[-1]-T[-2])
+        return drhodtheta
+
+    def create_rho_grad_grid(self):
+        drhodphi   = self.get_drho_dphi()
+        drhodr     = self.get_drho_dr()
+        drhodtheta = self.get_drho_dtheta()
+
+        arrs = (drhodphi,drhodr,drhodtheta)
+        self.state['gradrho_polar'] = np.stack(arrs,axis=-1)
+        
+        # get derivatives
+        phi   = self.xgrid
+        r     = self.ygrid
+        theta = self.zgrid
+
+        # chain rule
+        dphidx = -np.sin(phi)/r/np.sin(theta)
+        dphidy =  np.cos(phi)/r/np.sin(theta)
+        dphidz =  0
+        drdx = np.cos(phi)*np.sin(theta)
+        drdy = np.sin(phi)*np.sin(theta)
+        drdz = np.cos(theta)
+        dthetadx =  np.cos(phi)*np.cos(theta)/r
+        dthetady =  np.sin(phi)*np.cos(theta)/r
+        dthetadz = -np.sin(theta)/r
+
+        # check at phi=+-pi/2, theta=pi/2
+        # dphi = -+dx
+        drhodx = drhodphi*dphidx + drhodr*drdx + drhodtheta*dthetadx
+        drhody = drhodphi*dphidy + drhodr*drdy + drhodtheta*dthetady
+        drhodz = drhodphi*dphidz + drhodr*drdz + drhodtheta*dthetadz
+
+        cartarrs = (drhodx,drhody,drhodz)
+        self.state['gradrho'] = np.stack(cartarrs,axis=-1)
+
     def get_rho_grad(self,x,y,z=0):
         """return the cartesian gradient of the density"""
-        r = np.sqrt(x*x + y*y)
-        dx = 0.01*r
-        dy = 0.01*r
-        rho0 = self.get_rho(x,y,z)
-        rhox = self.get_rho(x+dx,y,z)
-        drhox = (rhox-rho0)/dx
-        rhoy = self.get_rho(x,y+dy,z)
-        drhoy = (rhoy-rho0)/dy
-        if self.ndim == 3:
-            h = float(self.variables['ASPECTRATIO'])*(r/float(self.variables['R0']))**float(self.variables['FLARINGINDEX'])
-            dz = 0.01*r*h
-            rhoz = self.get_rho(x,y,z+dz)
-            drhoz = (rhoz-rho0)/dz
-        else:
-            drhoz = np.zeros_like(x)
-        return drhox,drhoy,drhoz
+        return self.get_state_from_cart('gradrho',x,y,z)
+        # r = np.sqrt(x*x + y*y)
+        # dx = 0.01*r
+        # dy = 0.01*r
+        # rho0 = self.get_rho(x,y,z)
+        # rhox = self.get_rho(x+dx,y,z)
+        # drhox = (rhox-rho0)/dx
+        # rhoy = self.get_rho(x,y+dy,z)
+        # drhoy = (rhoy-rho0)/dy
+        # if self.ndim == 3:
+        #     h = float(self.variables['ASPECTRATIO'])*(r/float(self.variables['R0']))**float(self.variables['FLARINGINDEX'])
+        #     dz = 0.01*r*h
+        #     rhoz = self.get_rho(x,y,z+dz)
+        #     drhoz = (rhoz-rho0)/dz
+        # else:
+        #     drhoz = np.zeros_like(x)
+        # return drhox,drhoy,drhoz
 
 
 

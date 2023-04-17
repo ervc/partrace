@@ -53,16 +53,160 @@ class Particle(object):
 
         r = np.sqrt(x*x + y*y)
 
-        # initialize with keplerian velocity
-        vk = r*mesh.get_Omega(x,y,z) - r*float(mesh.variables['OMEGAFRAME'])
-        th = np.arctan2(y,x)
-        self.vel = ([-vk*np.sin(th),vk*np.cos(th),0])
+        self.create_particle_grids()
+
+        # # initialize with keplerian velocity
+        # vk = r*mesh.get_Omega(x,y,z) - r*float(mesh.variables['OMEGAFRAME'])
+        # th = np.arctan2(y,x)
+        # self.vel = ([-vk*np.sin(th),vk*np.cos(th),0])
 
         # # initialize velocity as same as gas
         # vgx,vgy,vgz = mesh.get_gas_vel(x,y,z)
         # self.vel = np.array([vgx,vgy,vgz])
+
+        # initialize from equilibrium velocity
+        self.vel = self.get_vel0()
         
         self.vel0 = np.array(self.vel)
+
+        if not self.mesh.quiet:
+            print(f'particle created at {self.pos}')
+
+    def get_vel0(self):
+        x,y,z = self.pos0
+        r = np.sqrt(x*x + y*y)
+        phi = np.arctan2(y,x)
+        omega = self.mesh.get_Omega(x,y,0)
+        vkep = r*omega
+        stokes = self.get_stokes()
+        tstop = stokes/omega
+        # get (non-rotating) gas vphi
+        vphi_gas = self.mesh.get_state_from_cart('gasvx',x,y,z)[0]
+        vphi_gas = vphi_gas + r*float(self.mesh.variables['OMEGAFRAME'])  
+        eta = 1-(vphi_gas/vkep)**2
+        # armitage notes (140)
+        vr = -eta/(stokes + 1/stokes) * vkep
+        # armitage notes (136)
+        vphi = vphi_gas - 0.5*tstop*vr*vkep/r
+        # get rotating vphi
+        vphi = vphi - r*float(self.mesh.variables['OMEGAFRAME'])
+
+        # x = r*np.cos(phi)
+        # xdot = rdot*np.cos(phi) - r*phidot*np.sin(phi)
+        # y = r*np.sin(phi)
+        # ydot = rdot*np.sin(phi) + r*phidot*np.cos(phi)
+        # note: vphi = r*phidot
+        vx = vr*np.cos(phi) - vphi*np.sin(phi)
+        vy = vr*np.sin(phi) + vphi*np.cos(phi)
+        vz = 0
+        print(vx,vy,vz)
+        return np.array([vx,vy,vz])
+
+    def create_particle_grids(self):
+        mesh = self.mesh
+        self.Stokes_grid = mesh.create_Stokes_grid(self.a,self.rho_s)
+        self.diff_grid = mesh.create_partdiff_grid(self.a,self.rho_s,self.Stokes_grid)
+        self.create_diff_grad()
+        self.diff_interp = self.get_diff_interp()
+        # self.stokes_interp = self.get_stokes_interp()
+
+    def get_diff_interp(self):
+        """Create an interpolator to find the 12 needed variables at any 
+        any point in the MegaGrid(TM). Follows from mesh.create_interpolator,
+        see that function for more in depth methodology.
+        """
+        from scipy.interpolate import RegularGridInterpolator
+        from .constants import PI,TWOPI
+
+        mesh = self.mesh
+        diff = self.diff_grid
+
+        # r stays the same
+        Y = mesh.ycenters
+
+        # complete the disk across midplane
+        lenz = len(mesh.zcenters)
+        Z = np.zeros(2*lenz)
+        Z[:lenz] = mesh.zcenters
+        Z[lenz:] = PI - mesh.zcenters[::-1]
+
+        # periodic in phi direction
+        # add on one extra ghost cell for interpolation
+        # to allow for interpolation in full TWOPI
+        lenx = len(mesh.xcenters)
+        X = np.zeros(lenx+2)
+        X[1:-1] = mesh.xcenters
+        X[0]  = mesh.xcenters[-1] - TWOPI
+        X[-1] = mesh.xcenters[0]  + TWOPI
+
+        # copy values into the array
+        arr = np.zeros((len(Z),len(Y),len(X)))
+        arr[0:lenz,:,1:-1] = diff
+        arr[0:lenz,:,0]  = diff[:,:,-1]
+        arr[0:lenz,:,-1] = diff[:,:,0]
+
+        # copy scalars over the midplane
+        arr[-1:lenz-1:-1] = arr[0:lenz]
+
+        # create the interpolator
+        interp = RegularGridInterpolator(
+            (Z,Y,X),arr,method='linear',bounds_error=False)
+
+        ### optional include regrid here if things take too long ###
+
+        return interp
+
+    def get_stokes_interp(self):
+        """Create an interpolator to find the 12 needed variables at any 
+        any point in the MegaGrid(TM). Follows from mesh.create_interpolator,
+        see that function for more in depth methodology.
+        """
+        from scipy.interpolate import RegularGridInterpolator
+        from .constants import PI,TWOPI
+
+        mesh = self.mesh
+        Stokes = self.Stokes_grid
+
+        # r stays the same
+        Y = mesh.ycenters
+
+        # complete the disk across midplane
+        lenz = len(mesh.zcenters)
+        Z = np.zeros(2*lenz)
+        Z[:lenz] = mesh.zcenters
+        Z[lenz:] = PI - mesh.zcenters[::-1]
+
+        # periodic in phi direction
+        # add on one extra ghost cell for interpolation
+        # to allow for interpolation in full TWOPI
+        lenx = len(mesh.xcenters)
+        X = np.zeros(lenx+2)
+        X[1:-1] = mesh.xcenters
+        X[0]  = mesh.xcenters[-1] - TWOPI
+        X[-1] = mesh.xcenters[0]  + TWOPI
+
+        # copy values into the array
+        arr = np.zeros((len(Z),len(Y),len(X)))
+        arr[0:lenz,:,1:-1] = Stokes
+        arr[0:lenz,:,0]  = Stokes[:,:,-1]
+        arr[0:lenz,:,-1] = Stokes[:,:,0]
+
+        # copy scalars over the midplane
+        arr[-1:lenz-1:-1] = arr[0:lenz]
+
+        # create the interpolator
+        interp = RegularGridInterpolator(
+            (Z,Y,X),arr,method='linear',bounds_error=False)
+
+        ### optional include regrid here if things take too long ###
+
+        return interp
+
+    def get_diff_at(self,x,y,z):
+        phi = np.arctan2(y,x)
+        r = np.sqrt(x*x + y*y + z*z)
+        theta = np.arccos(z/r)
+        return self.diff_interp(np.stack([theta,r,phi],axis=-1))
 
     def update_position(self,x,y,z):
         """update the position of the particle"""
@@ -78,6 +222,70 @@ class Particle(object):
         rho_g = self.mesh.get_rho(*self.pos)[0]
         cs = self.mesh.get_soundspeed(*self.pos)[0]
         return self.a*self.rho_s/(rho_g*cs)*om
+
+    def get_dDdphi(self):
+        diff = self.diff_grid
+        phi = self.mesh.xgrid
+
+        dDdphi = np.zeros_like(diff)
+        dDdphi[:,:,1:-1] = (diff[:,:,2:]-diff[:,:,:-2])/(phi[:,:,2:]-diff[:,:,:-2])
+        dDdphi[:,:,0] = (diff[:,:,1]-diff[:,:,-1])/(phi[:,:,1]-phi[:,:,-1]-TWOPI)
+        dDdphi[:,:,-1] = (diff[:,:,0]-diff[:,:,-2])/(phi[:,:,0]-phi[:,:,-2]+TWOPI)
+
+        return dDdphi
+
+    def get_dDdr(self):
+        diff = self.diff_grid
+        r = self.mesh.ygrid
+
+        dDdr = np.zeros_like(diff)
+        dDdr[:,1:-1] = (diff[:,2:]-diff[:,:-2])/(r[:,2:]-r[:,:-2])
+        dDdr[:,0] = (diff[:,1]-diff[:,0])/(r[:,1]-r[:,0])
+        dDdr[:,-1] = (diff[:,-1]-diff[:,-2])/(r[:,-1]-r[:,-2])
+
+        return dDdr
+
+    def get_dDdtheta(self):
+        diff = self.diff_grid
+        theta = self.mesh.zgrid
+
+        dDdtheta = np.zeros_like(diff)
+        dDdtheta[1:-1] = (diff[2:]-diff[:-2])/(theta[2:]-theta[:-2])
+        dDdtheta[0] = (diff[1]-diff[0])/(theta[1]-theta[0])
+        dDdtheta[-1] = (diff[-1]-diff[-2])/(theta[-1]-theta[-2])
+
+        return dDdtheta
+
+    def create_diff_grad(self):
+        dDdphi   = self.get_dDdphi()
+        dDdr     = self.get_dDdr()
+        dDdtheta = self.get_dDdtheta()
+
+        arrs = (dDdphi,dDdr,dDdtheta)
+        self.graddiff_polar = np.stack(arrs,axis=-1)
+
+        phi   = self.mesh.xgrid
+        r     = self.mesh.ygrid
+        theta = self.mesh.zgrid
+
+        # chain rule
+        dphidx = -np.sin(phi)/r/np.sin(theta)
+        dphidy =  np.cos(phi)/r/np.sin(theta)
+        dphidz =  0
+        drdx = np.cos(phi)*np.sin(theta)
+        drdy = np.sin(phi)*np.sin(theta)
+        drdz = np.cos(theta)
+        dthetadx =  np.cos(phi)*np.cos(theta)/r
+        dthetady =  np.sin(phi)*np.cos(theta)/r
+        dthetadz = -np.sin(theta)/r
+
+        dDdx = dDdphi*dphidx + dDdr*drdx + dDdtheta*dthetadx
+        dDdy = dDdphi*dphidy + dDdr*drdy + dDdtheta*dthetady
+        dDdz = dDdphi*dphidz + dDdr*drdz + dDdtheta*dthetadz
+
+        cartarrs = (dDdx,dDdy,dDdz)
+        self.graddiff = np.stack(cartarrs,axis=-1)
+        
 
     def get_drag_coeff(self):
         """drag coefficient Tanigawa et al. 2014 (Watanabe+Ida 1997)"""
