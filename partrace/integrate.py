@@ -273,7 +273,7 @@ def new_solve_ode(t0,y0,tf,particle,planet,MegaInterp,
 
     ##### MAIN LOOP #####
     print('starting loop')
-    checkpoints = np.linspace(t0,tf,20)
+    checkpoints = np.linspace(t0,tf,101)
     ncheck = 0
     MAXN = np.inf
     nloop = 0

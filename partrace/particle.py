@@ -74,14 +74,19 @@ class Particle(object):
 
     def get_vel0(self):
         x,y,z = self.pos0
-        r = np.sqrt(x*x + y*y)
+        ZNEG = False
+        if z<0:
+            z = -z
+            ZNEG = True
+        i,j,k = self.mesh.get_cell_index(x,y,z)
+        r = np.sqrt(x*x + y*y + z*z)
         phi = np.arctan2(y,x)
-        omega = self.mesh.get_Omega(x,y,0)
+        omega = self.mesh.get_Omega(x,y,z)
         vkep = r*omega
-        stokes = self.get_stokes()
+        stokes = self.get_approx_stokes()
         tstop = stokes/omega
         # get (non-rotating) gas vphi
-        vphi_gas = self.mesh.get_state_from_cart('gasvx',x,y,z)[0]
+        vphi_gas = self.mesh.state['gasvx'][k,j,i]
         vphi_gas = vphi_gas + r*float(self.mesh.variables['OMEGAFRAME'])  
         eta = 1-(vphi_gas/vkep)**2
         # armitage notes (140)
@@ -214,6 +219,17 @@ class Particle(object):
     def update_velocity(self,vx,vy,vz):
         """update the velocity of the particle"""
         self.vel = np.array([vx,vy,vz])
+
+    def get_approx_stokes(self):
+        """Get the stokes number at the center of the closest cell"""
+        x,y,z = self.pos
+        if z < 0:
+            z = -z
+        i,j,k = self.mesh.get_cell_index(x,y,z)
+        om = self.mesh.get_Omega(*self.pos)
+        rho_g = self.mesh.state['gasdens'][k,j,i]
+        cs = self.mesh.get_soundspeed(*self.pos)
+        return self.a*self.rho_s/(rho_g*cs)*om
 
     def get_stokes(self):
         """get the stokes number at the current location"""

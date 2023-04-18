@@ -121,9 +121,10 @@ class Planet():
 
     def get_bondi_radius(self):
         """determine the bondi radius of the planet"""
+        x,y,z = self.pos
         G = float(self.mesh.variables['G'])
         Mpl = self.mass
-        cs = self.mesh.get_soundspeed(*self.pos)
+        cs = self.mesh.get_soundspeed(x,y,z)
         return 2*G*Mpl/cs/cs
 
     def get_envelope_radius(self):

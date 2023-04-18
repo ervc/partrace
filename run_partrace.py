@@ -106,10 +106,20 @@ def main():
     kw = {'max_step':maxdt}
     intargs = (t0,tf,planet,kw)
 
-    with mp.Pool(processes=nproc) as pool:
+    if nproc > 1:
+        print('Creating multiprocessing pool...', flush=True)
+        with mp.Pool(processes=nproc) as pool:
+            N = np.arange(npart)
+            allargs = [(locs,pargs,intargs,n) for n in N]
+            allsols = pool.map(helper_func,allargs)
+    else:
+        print('looping...')
+        allsols = []
         N = np.arange(npart)
         allargs = [(locs,pargs,intargs,n) for n in N]
-        allsols = pool.map(helper_func,allargs)
+        for arg in allargs:
+            allsols.append(helper_func(arg))
+
     statii = np.zeros(NPART,dtype=int)
     ends = np.zeros((NPART,3),dtype=float)
     starts = np.zeros((NPART,3),dtype=float)

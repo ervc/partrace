@@ -97,18 +97,18 @@ class Mesh():
                 else:
                     self.read_state(state,n)
                 # create an interpolator to get values off grid
-                self.interpolators[state] = self.create_interpolator(state)
+                # self.interpolators[state] = self.create_interpolator(state)
             # create grid for gas diffusivity
             if 'gasenergy' in self.state:
                 print('creating gasdiff grid')
                 self.create_gasdiff_grid()
-                self.interpolators['gasdiff'] = self.create_interpolator('gasdiff')
+                # self.interpolators['gasdiff'] = self.create_interpolator('gasdiff')
             # get grid of rho gradient
             if 'gasdens' in self.state:
                 print('creating gradrho grid')
                 self.create_rho_grad_grid()
-                self.interpolators['gradrho'] = self.create_interpolator('gradrho')
-                self.interpolators['gradrho_polar'] = self.create_interpolator('gradrho_polar')
+                # self.interpolators['gradrho'] = self.create_interpolator('gradrho')
+                # self.interpolators['gradrho_polar'] = self.create_interpolator('gradrho_polar')
             if not quiet:
                 outstr = ('Initialized, self.states contains:\n'
                     + f'{list(self.state.keys())}\n'
@@ -219,6 +219,38 @@ class Mesh():
         self._readin_edges(ghostcells=ghostcells)
 
         self._get_centers()
+
+    def get_cell_index(self,x,y,z):
+        """return the cell with center location closest to the given
+        cartesian location
+        """
+        phi = np.arctan2(y,x)
+        r = np.sqrt(x*x + y*y + z*z)
+        theta = np.arccos(z/r)
+
+        # use regular az spacing to our advantage
+        dphi = TWOPI/self.nx
+        # the center of each cell is at (i+1/2)*dphi + phimin
+        # we want to minimize |phi - [(i+1/2)*dphi + phimin]| or
+        # closest i to phi = (i+1/2)*dphi-PI
+        i = int(np.round((phi+PI)/dphi - 1/2))
+        # wrap around!
+        if i == self.nx:
+            i = 0
+
+        # loop through r since this may or may not be linearly spaced
+        # by default this will be log spaced
+        # Loop through to until we start moving away from the value
+        j = np.argmin(np.abs(r-self.ycenters))
+
+        # once again, spacing may not be regular. Assume that z>0 and
+        # theta < PI/2. Exceptions should be handled before the call
+        # here. For example a particle below the midplane will need the
+        # same gas density as +z, but gasvz should be negative.
+        k = np.argmin(np.abs(theta-self.zcenters))
+
+        return i,j,k
+
 
     def _readin_edges(self,ghostcells=True):
         """Helper function to readin domain[x,y,z].dat files"""
@@ -703,11 +735,11 @@ class Mesh():
 
     def get_soundspeed(self,x,y,z=0):
         """Return the soundspeed at given cartesian location"""
-        # H = self.get_scaleheight(x,y,z)
-        # Om = self.get_Omega(x,y,z)
-        # return H*Om
-        cs = self.get_state_from_cart('gasenergy',x,y,z)
-        return cs
+        H = self.get_scaleheight(x,y,z)
+        Om = self.get_Omega(x,y,z)
+        return H*Om
+        # cs = self.get_state_from_cart('gasenergy',x,y,z)
+        # return cs
 
 
     def get_diffusivity(self,x,y,z=0):
