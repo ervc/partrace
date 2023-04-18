@@ -63,7 +63,7 @@ def main():
     print('output dirrectory: ',params["outputdir"])
     print('number of particles: ',NPART)
     # check number of processors
-    print('cpus availables = ',nproc)
+    print('cpus availables = ',nproc,flush=True)
 
     # global
     fargodir = FARGODIR
@@ -97,7 +97,7 @@ def main():
     print(f'particle size, density = {a} cm, {rho_s} g cm-3')
 
     # create the mega interpolator
-    print('Creating Mega Interpolator')
+    print('Creating Mega Interpolator',flush=True)
     mesh.MegaInterp = create_mega_interpolator(mesh,a,rho_s)
     print('Done!\n')
 
