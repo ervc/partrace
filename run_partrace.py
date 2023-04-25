@@ -137,7 +137,6 @@ def main():
     print(f'successes : {count_success(statii)}/'
         +f'{len(statii)}')
 
-
 def helper_func(args):
     """
     Helper funtion to allow for integration using multiprocessing map, which only takes one
@@ -164,7 +163,7 @@ def helper_func(args):
     p = pt.create_particle(mesh,x0,y0,z0,a,rho_s)
     print('starting particle ',n,flush=True)
     savefile = None
-    if n%10 == 0:
+    if n%1 == 0:
         savefile = f'{OUTPUTDIR}/history_{n}.npz'
     t0,tf,planet,kw = intargs
     status,end,time = integrate(t0,tf,p,planet,mesh.MegaInterp,savefile=savefile,
