@@ -313,8 +313,6 @@ def new_solve_ode(t0,y0,tf,particle,planet,MegaInterp,
         Yi = rkstep(f,time,Yim,dt)
         if diffusion:
             ### find what X' is
-            rho,vgx,vgy,vgz,cs,gradrhox,gradrhoy,gradrhoz, \
-                D,gradDx,gradDy,gradDz = use_interp(MegaInterp,*Xim)[0]
             Xprime = Xim + 0.5*GradD*dt
             Dxprime = mesh.get_partdiff_at(*Xprime)[0]
             ### random numbers
