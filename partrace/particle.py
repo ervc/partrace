@@ -5,6 +5,7 @@ Particle class for tracer particles that move through the Mesh.
 
 import numpy as np
 from .constants import *
+from .interpolate import interp3d
 
 DEBUG = False
 
@@ -53,40 +54,41 @@ class Particle(object):
 
         r = np.sqrt(x*x + y*y)
 
-        # self.create_particle_grids()
+        self.subgrid = {}
+        self.init_subgrid()
+        self.update_subgrid()
 
-        # # initialize with keplerian velocity
-        # vk = r*mesh.get_Omega(x,y,z) - r*float(mesh.variables['OMEGAFRAME'])
-        # th = np.arctan2(y,x)
-        # self.vel = ([-vk*np.sin(th),vk*np.cos(th),0])
-
-        # # initialize velocity as same as gas
-        # vgx,vgy,vgz = mesh.get_gas_vel(x,y,z)
-        # self.vel = np.array([vgx,vgy,vgz])
-
-        # initialize from equilibrium velocity
         self.vel = self.get_vel0()
-        
         self.vel0 = np.array(self.vel)
 
         if not self.mesh.quiet:
             print(f'particle created at {self.pos}')
 
+    def init_subgrid(self):
+        self.iwidth = self.mesh.nx+2 #512+1
+        self.jwidth = 48+1
+        self.kwidth = self.mesh.nz*2
+
+        self.subgridshape = (self.kwidth,self.jwidth,self.iwidth)
+        self.subgridsize = self.kwidth*self.jwidth*self.iwidth
+
+        self.subxcenters = np.zeros(self.iwidth)
+        self.subycenters = np.zeros(self.jwidth)
+        self.subzcenters = np.zeros(self.kwidth)
+
+        for state in ['gasdens','gasvx','gasvy','gasvz','partdiff']:
+            self.subgrid[state] = np.zeros(self.subgridshape)
+
     def get_vel0(self):
         x,y,z = self.pos0
-        ZNEG = False
-        if z<0:
-            z = -z
-            ZNEG = True
-        i,j,k = self.mesh.get_cell_index(x,y,z)
         r = np.sqrt(x*x + y*y + z*z)
         phi = np.arctan2(y,x)
         omega = self.mesh.get_Omega(x,y,z)
         vkep = r*omega
-        stokes = self.get_approx_stokes()
+        stokes = self.get_stokes()
         tstop = stokes/omega
-        # get (non-rotating) gas vphi
-        vphi_gas = self.mesh.state['gasvx'][k,j,i]
+        # get (non-rotating) gas vphi at closest cell point
+        vphi_gas = self.subgrid['gasvx'][self.subk,self.subj,self.subi]
         vphi_gas = vphi_gas + r*float(self.mesh.variables['OMEGAFRAME'])  
         eta = 1-(vphi_gas/vkep)**2
         # armitage notes (140)
@@ -106,182 +108,292 @@ class Particle(object):
         vz = 0
         return np.array([vx,vy,vz])
 
-    def create_particle_grids(self):
-        mesh = self.mesh
-        self.Stokes_grid = mesh.create_Stokes_grid(self.a,self.rho_s)
-        self.diff_grid = mesh.create_partdiff_grid(self.a,self.rho_s,self.Stokes_grid)
-        self.create_diff_grad()
-        self.diff_interp = self.get_diff_interp()
-        # self.stokes_interp = self.get_stokes_interp()
-
-    def get_diff_interp(self):
-        """Create an interpolator to find the 12 needed variables at any 
-        any point in the MegaGrid(TM). Follows from mesh.create_interpolator,
-        see that function for more in depth methodology.
-        """
-        from scipy.interpolate import RegularGridInterpolator
-        from .constants import PI,TWOPI
-
-        mesh = self.mesh
-        diff = self.diff_grid
-
-        # r stays the same
-        Y = mesh.ycenters
-
-        # complete the disk across midplane
-        lenz = len(mesh.zcenters)
-        Z = np.zeros(2*lenz)
-        Z[:lenz] = mesh.zcenters
-        Z[lenz:] = PI - mesh.zcenters[::-1]
-
-        # periodic in phi direction
-        # add on one extra ghost cell for interpolation
-        # to allow for interpolation in full TWOPI
-        lenx = len(mesh.xcenters)
-        X = np.zeros(lenx+2)
-        X[1:-1] = mesh.xcenters
-        X[0]  = mesh.xcenters[-1] - TWOPI
-        X[-1] = mesh.xcenters[0]  + TWOPI
-
-        # copy values into the array
-        arr = np.zeros((len(Z),len(Y),len(X)))
-        arr[0:lenz,:,1:-1] = diff
-        arr[0:lenz,:,0]  = diff[:,:,-1]
-        arr[0:lenz,:,-1] = diff[:,:,0]
-
-        # copy scalars over the midplane
-        arr[-1:lenz-1:-1] = arr[0:lenz]
-
-        # create the interpolator
-        interp = RegularGridInterpolator(
-            (Z,Y,X),arr,method='linear',bounds_error=False)
-
-        ### optional include regrid here if things take too long ###
-
-        return interp
-
-    def get_stokes_interp(self):
-        """Create an interpolator to find the 12 needed variables at any 
-        any point in the MegaGrid(TM). Follows from mesh.create_interpolator,
-        see that function for more in depth methodology.
-        """
-        from scipy.interpolate import RegularGridInterpolator
-        from .constants import PI,TWOPI
-
-        mesh = self.mesh
-        Stokes = self.Stokes_grid
-
-        # r stays the same
-        Y = mesh.ycenters
-
-        # complete the disk across midplane
-        lenz = len(mesh.zcenters)
-        Z = np.zeros(2*lenz)
-        Z[:lenz] = mesh.zcenters
-        Z[lenz:] = PI - mesh.zcenters[::-1]
-
-        # periodic in phi direction
-        # add on one extra ghost cell for interpolation
-        # to allow for interpolation in full TWOPI
-        lenx = len(mesh.xcenters)
-        X = np.zeros(lenx+2)
-        X[1:-1] = mesh.xcenters
-        X[0]  = mesh.xcenters[-1] - TWOPI
-        X[-1] = mesh.xcenters[0]  + TWOPI
-
-        # copy values into the array
-        arr = np.zeros((len(Z),len(Y),len(X)))
-        arr[0:lenz,:,1:-1] = Stokes
-        arr[0:lenz,:,0]  = Stokes[:,:,-1]
-        arr[0:lenz,:,-1] = Stokes[:,:,0]
-
-        # copy scalars over the midplane
-        arr[-1:lenz-1:-1] = arr[0:lenz]
-
-        # create the interpolator
-        interp = RegularGridInterpolator(
-            (Z,Y,X),arr,method='linear',bounds_error=False)
-
-        ### optional include regrid here if things take too long ###
-
-        return interp
-
-    def get_diff_at(self,x,y,z):
-        phi = np.arctan2(y,x)
-        r = np.sqrt(x*x + y*y + z*z)
-        theta = np.arccos(z/r)
-        return self.diff_interp(np.stack([theta,r,phi],axis=-1))
-
     def update_position(self,x,y,z):
-        """update the position of the particle"""
+        """update the position of the particle, and 
+        update subgrid if necessary"""
         self.pos = np.array([x,y,z])
+        self.subi,self.subj,self.subk = self.get_subgrid_index(x,y,z)
+        if ( #self.subi > 31/32*self.iwidth or self.subi < 1/32*self.iwidth or
+                self.subj > 3/4*self.jwidth or self.subj < 1/4*self.jwidth):
+            self.update_subgrid()
+
 
     def update_velocity(self,vx,vy,vz):
         """update the velocity of the particle"""
         self.vel = np.array([vx,vy,vz])
 
-    def get_approx_stokes(self):
-        """Get the stokes number at the center of the closest cell"""
-        x,y,z = self.pos
-        if z < 0:
-            z = -z
-        i,j,k = self.mesh.get_cell_index(x,y,z)
-        om = self.mesh.get_Omega(*self.pos)
-        rho_g = self.mesh.state['gasdens'][k,j,i]
-        cs = self.mesh.get_soundspeed(*self.pos)
-        return self.a*self.rho_s/(rho_g*cs)*om
+    def get_subgrid_index(self,x,y,z):
+        """return the cell with center location closest to the given
+        cartesian location
+        """
+        phi = np.arctan2(y,x)
+        r = np.sqrt(x*x + y*y + z*z)
+        theta = np.arccos(z/r)
 
+        # # use regular az spacing to our advantage
+        # dphi = (self.subxcenters[-1]-self.subxcenters[0])/(self.iwidth-1)
+        # # the center of each cell is at i*dphi + phimin
+        # # we want to minimize |phi - [i*dphi + phimin]| or
+        # # closest i to phi = i*dphi+phimin
+        # try:
+        #     i = int(np.round((phi-self.subxcenters[0])/dphi))
+        # except ValueError:
+        #     print('\n',x,y,z)
+        #     print(phi)
+        #     print(self.subxcenters[0])
+        #     print(dphi)
+        #     raise ValueError
+        i = np.argmin(np.abs(phi-self.subxcenters))
+
+
+        # loop through r since this may or may not be linearly spaced
+        # by default this will be log spaced
+        # Loop through to until we start moving away from the value
+        j = np.argmin(np.abs(r-self.subycenters))
+
+        # once again, spacing may not be regular. Assume that z>0 and
+        # theta < PI/2. Exceptions should be handled before the call
+        # here. For example a particle below the midplane will need the
+        # same gas density as +z, but gasvz should be negative.
+        k = np.argmin(np.abs(theta-self.subzcenters))
+
+        return i,j,k
+
+    def update_subgrid(self):
+        # read in new values for a subgrid centered on the particle
+        x,y,z = self.pos
+        ZNEG = False
+        if z<0:
+            z=-z
+            ZNEG = True
+        i,j,k = self.mesh.get_cell_index(x,y,z)
+        # ihw = int((self.iwidth-1)/2)
+        jhw = int((self.jwidth-1)/2)
+        # ilo,ihi = i-ihw, i+ihw+1
+        jlo,jhi = j-jhw, j+jhw+1
+
+        # # get x centers first
+        # # check bounds
+        # if ilo < 0:
+        #     # periodic at lower edge
+        #     l = list(range(self.mesh.nx+ilo,self.mesh.nx))+list(range(0,ihi))
+        #     islice = np.array(l)
+        # elif ihi >= self.mesh.nx:
+        #     l = list(range(ilo,self.mesh.nx))+list(range(0,ihi-self.mesh.nx))
+        #     islice = np.array(l)
+        # else:
+        #     islice = np.arange(ilo,ihi)
+        # # use array slicing to get periodic azimuthal values
+        # self.subxcenters = self.mesh.xcenters[islice]
+        # # if islice is less than ilo, this means some of the indices
+        # # have wrapped around from the upper edge (ihi >= self.mesh.nx)
+        # self.subxcenters[islice<ilo] += 2*np.pi
+        # self.subxcenters[islice>ihi] -= 2*np.pi
+        self.subxcenters = np.zeros(self.iwidth)
+        self.subxcenters[1:-1] = self.mesh.xcenters
+        self.subxcenters[0] = self.mesh.xcenters[-1]-2*np.pi
+        self.subxcenters[-1] = self.mesh.xcenters[0]+2*np.pi
+        # islice is indexing array, where we index the last cell,
+        # then all the cells in order, then the first cell to make the
+        # boundaries periodic
+        islice = np.array([-1] + list(range(self.mesh.nx)) + [0])
+
+        # get y centers next
+        if jlo < 0:
+            # just pad the lower edge of the grid with zeros
+            # particle should be caught before it reaches this point
+            # in the integration step
+            l = [0]*-jlo + list(range(0,jhi))
+            jslice = np.array(l)
+        elif jhi > self.mesh.ny:
+            l = list(range(jlo,self.mesh.ny)) + [self.mesh.ny-1]*(jhi-self.mesh.ny)
+            jslice = np.array(l)
+        else:
+            jslice = np.arange(jlo,jhi)
+        self.subycenters = self.mesh.ycenters[jslice]
+
+        # get z centers last
+        nz = self.mesh.nz
+        self.subzcenters[:nz] = self.mesh.zcenters
+        self.subzcenters[nz:] = np.pi-self.mesh.zcenters[::-1]
+
+        # use [:,None] and [None,:] to make jslice and islice 2D so the
+        # slice can be broadcast
+        for state in ['gasdens','gasvx','gasvy','gasvz']:
+            self.subgrid[state][:nz] = self.mesh.read_state(state)[:,jslice[:,None],islice[None,:]]
+            if state == 'gasvz':
+                self.subgrid[state][nz:] = -self.subgrid[state][nz-1::-1]
+            else:
+                self.subgrid[state][nz:] = self.subgrid[state][nz-1::-1]
+
+        # get the gradient grids
+        self.subgrid['gradrho'] = self.get_gradrho_grid()
+        self.subgrid['gradpartdiff'] = self.get_gradpartdiff_grid()
+        self.subgrid['gasvel'] = self.get_gasvel_grid()
+
+        # cell index in subgrid
+        self.subi = i
+        self.subj = jhw
+        self.subk = k
+        if ZNEG:
+            self.subk = 2*nz-k-1
+
+        return None
+
+
+    # RHO FUNCTIONS
+    def get_rho(self):
+        """Return the gas density at the location of the particle"""
+        return self.get_rho_at(*self.pos)
+
+    def get_rho_at(self,x,y,z):
+        """return the gas density at a location near the particle
+        (within the submesh)
+        """
+        return interp3d(self.subgrid['gasdens'],
+            (self.subxcenters,self.subycenters,self.subzcenters),(x,y,z))
+
+    def get_rho_grid(self):
+        return np.array(self.subgrid['gasdens'])
+
+    def get_gradrho_grid(self):
+        rho = self.subgrid['gasdens']
+        p = self.subxcenters
+        r = self.subycenters
+        t = self.subzcenters
+
+        # need phi,r,theta on a grid
+        theta,r,phi = np.meshgrid(t,r,p,indexing='ij')
+
+        # drhodphi
+        drhodphi = np.zeros_like(rho)
+        dphi = (self.subxcenters[-1]-self.subxcenters[0])/(self.iwidth-1)
+        drhodphi[:,:,1:-1] = (rho[:,:,2:]-rho[:,:,:-2])/(2*dphi)
+        drhodphi[:,:,0] = (rho[:,:,1]-rho[:,:,0])/(dphi)
+        drhodphi[:,:,-1] = (rho[:,:,-1]-rho[:,:,-2])/(dphi)
+
+        # drhodr
+        drhodr = np.zeros_like(rho)
+        drhodr[:,1:-1,:] = (rho[:,2:,:]-rho[:,:-2,:])/(r[:,2:,:]-r[:,:-2,:])
+        drhodr[:,0,:] = (rho[:,1,:]-rho[:,0,:])/(r[:,1,:]-r[:,0,:])
+        drhodr[:,-1,:] = (rho[:,-1,:]-rho[:,-2,:])/(r[:,-1,:]-r[:,-2,:])
+
+        # drhodtheta
+        drhodtheta = np.zeros_like(rho)
+        drhodtheta[1:-1] = (rho[2:]-rho[:-2])/(theta[2:]-theta[:-2])
+        drhodtheta[0] = (rho[1]-rho[0])/(theta[1]-theta[0])
+        drhodtheta[-1] = (rho[-1]-rho[-2])/(theta[-1]-theta[-2])
+
+        # chain rule
+        dphidx = -np.sin(phi)/r/np.sin(theta)
+        dphidy =  np.cos(phi)/r/np.sin(theta)
+        dphidz =  0
+        drdx = np.cos(phi)*np.sin(theta)
+        drdy = np.sin(phi)*np.sin(theta)
+        drdz = np.cos(theta)
+        dthetadx =  np.cos(phi)*np.cos(theta)/r
+        dthetady =  np.sin(phi)*np.cos(theta)/r
+        dthetadz = -np.sin(theta)/r
+
+        drhodx = drhodphi*dphidx + drhodr*drdx + drhodtheta*dthetadx
+        drhody = drhodphi*dphidy + drhodr*drdy + drhodtheta*dthetady
+        drhodz = drhodphi*dphidz + drhodr*drdz + drhodtheta*dthetadz
+
+        arrs = (drhodx,drhody,drhodz)
+        return np.stack(arrs,axis=-1)
+
+    def get_gradrho(self):
+        return self.get_gradrho_at(*self.pos)
+
+    def get_gradrho_at(self,x,y,z):
+        return interp3d(self.subgrid['gradrho'],
+            (self.subxcenters,self.subycenters,self.subzcenters),(x,y,z))
+
+
+
+    # STOKES FUNCTIONS
     def get_stokes(self):
         """get the stokes number at the current location"""
-        om = self.mesh.get_Omega(*self.pos)
-        rho_g = self.mesh.get_rho(*self.pos)[0]
-        cs = self.mesh.get_soundspeed(*self.pos)[0]
+        return self.get_stokes_at(*self.pos)
+
+    def get_stokes_at(self,x,y,z):
+        """Return the stokes number at a location near the particle"""
+        rho_g = self.get_rho_at(x,y,z)
+        cs = self.mesh.get_soundspeed(x,y,z)
+        om = self.mesh.get_Omega(x,y,z)
         return self.a*self.rho_s/(rho_g*cs)*om
 
-    def get_dDdphi(self):
-        diff = self.diff_grid
-        phi = self.mesh.xgrid
+    def get_stokes_grid(self):
+        phi   = self.subxcenters
+        r     = self.subycenters
+        theta = self.subzcenters
+        tt,rr,pp = np.meshgrid(theta,r,phi,indexing='ij')
+        xx = rr*np.cos(pp)*np.sin(tt)
+        yy = rr*np.sin(pp)*np.sin(tt)
+        zz = rr*np.cos(tt)
+        rho_g = self.subgrid['gasdens']
+        cs = self.mesh.get_soundspeed(xx,yy,zz)
+        om = self.mesh.get_Omega(xx,yy,zz)
+        return self.a*self.rho_s/(rho_g*cs)*om
 
-        dDdphi = np.zeros_like(diff)
-        dDdphi[:,:,1:-1] = (diff[:,:,2:]-diff[:,:,:-2])/(phi[:,:,2:]-diff[:,:,:-2])
-        dDdphi[:,:,0] = (diff[:,:,1]-diff[:,:,-1])/(phi[:,:,1]-phi[:,:,-1]-TWOPI)
-        dDdphi[:,:,-1] = (diff[:,:,0]-diff[:,:,-2])/(phi[:,:,0]-phi[:,:,-2]+TWOPI)
+    def get_stopping_time(self):
+        om = self.mesh.get_Omega(*self.pos)
+        return self.get_stokes()/om
 
-        return dDdphi
+    def get_stopping_time_at(self,x,y,z):
+        om = self.mesh.get_Omega(x,y,z)
+        return self.get_stokes_at(x,y,z)/om
 
-    def get_dDdr(self):
-        diff = self.diff_grid
-        r = self.mesh.ygrid
 
-        dDdr = np.zeros_like(diff)
-        dDdr[:,1:-1] = (diff[:,2:]-diff[:,:-2])/(r[:,2:]-r[:,:-2])
-        dDdr[:,0] = (diff[:,1]-diff[:,0])/(r[:,1]-r[:,0])
-        dDdr[:,-1] = (diff[:,-1]-diff[:,-2])/(r[:,-1]-r[:,-2])
+    # DIFFUSIVITY FUNCTIONS
+    def get_partdiff(self):
+        """Return the particle diffusivity at current location"""
+        return self.get_partdiff_at(*self.pos)
 
-        return dDdr
+    def get_partdiff_at(self,x,y,z):
+        gasdiff = self.mesh.get_diffusivity(x,y,z)
+        St = self.get_stokes_at(x,y,z)
+        return gasdiff/(1+St*St)
 
-    def get_dDdtheta(self):
-        diff = self.diff_grid
-        theta = self.mesh.zgrid
+    def get_partdiff_grid(self):
+        phi   = self.subxcenters
+        r     = self.subycenters
+        theta = self.subzcenters
+        tt,rr,pp = np.meshgrid(theta,r,phi,indexing='ij')
+        xx = rr*np.cos(pp)*np.sin(tt)
+        yy = rr*np.sin(pp)*np.sin(tt)
+        zz = rr*np.cos(tt)
+        gasdiff = self.mesh.get_diffusivity(xx,yy,zz)
+        St = self.get_stokes_grid()
+        return gasdiff/(1+St*St)
 
-        dDdtheta = np.zeros_like(diff)
-        dDdtheta[1:-1] = (diff[2:]-diff[:-2])/(theta[2:]-theta[:-2])
-        dDdtheta[0] = (diff[1]-diff[0])/(theta[1]-theta[0])
-        dDdtheta[-1] = (diff[-1]-diff[-2])/(theta[-1]-theta[-2])
+    def get_gradpartdiff_grid(self):
+        D = self.get_partdiff_grid()
+        p = self.subxcenters
+        r = self.subycenters
+        t = self.subzcenters
 
-        return dDdtheta
+        # need phi,r,theta on a grid
+        theta,r,phi = np.meshgrid(t,r,p,indexing='ij')
 
-    def create_diff_grad(self):
-        dDdphi   = self.get_dDdphi()
-        dDdr     = self.get_dDdr()
-        dDdtheta = self.get_dDdtheta()
+        # dDdphi
+        dDdphi = np.zeros_like(D)
+        dphi = (self.subxcenters[-1]-self.subxcenters[0])/(self.iwidth-1)
+        dDdphi[:,:,1:-1] = (D[:,:,2:]-D[:,:,:-2])/(2*dphi)
+        dDdphi[:,:,0] = (D[:,:,1]-D[:,:,0])/(dphi)
+        dDdphi[:,:,-1] = (D[:,:,-1]-D[:,:,-2])/(dphi)
 
-        arrs = (dDdphi,dDdr,dDdtheta)
-        self.graddiff_polar = np.stack(arrs,axis=-1)
+        # dDdr
+        dDdr = np.zeros_like(D)
+        dDdr[:,1:-1,:] = (D[:,2:,:]-D[:,:-2,:])/(r[:,2:,:]-r[:,:-2,:])
+        dDdr[:,0,:] = (D[:,1,:]-D[:,0,:])/(r[:,1,:]-r[:,0,:])
+        dDdr[:,-1,:] = (D[:,-1,:]-D[:,-2,:])/(r[:,-1,:]-r[:,-2,:])
 
-        phi   = self.mesh.xgrid
-        r     = self.mesh.ygrid
-        theta = self.mesh.zgrid
+        # dDdtheta
+        dDdtheta = np.zeros_like(D)
+        dDdtheta[1:-1] = (D[2:]-D[:-2])/(theta[2:]-theta[:-2])
+        dDdtheta[0] = (D[1]-D[0])/(theta[1]-theta[0])
+        dDdtheta[-1] = (D[-1]-D[-2])/(theta[-1]-theta[-2])
 
         # chain rule
         dphidx = -np.sin(phi)/r/np.sin(theta)
@@ -298,8 +410,40 @@ class Particle(object):
         dDdy = dDdphi*dphidy + dDdr*drdy + dDdtheta*dthetady
         dDdz = dDdphi*dphidz + dDdr*drdz + dDdtheta*dthetadz
 
-        cartarrs = (dDdx,dDdy,dDdz)
-        self.graddiff = np.stack(cartarrs,axis=-1)
+        arrs = (dDdx,dDdy,dDdz)
+        return np.stack(arrs,axis=-1)
+
+    def get_gradpartdiff(self):
+        return self.get_gradpartdiff_at(*self.pos)
+
+    def get_gradpartdiff_at(self,x,y,z):
+        return interp3d(self.subgrid['gradpartdiff'],
+            (self.subxcenters,self.subycenters,self.subzcenters),(x,y,z))
+
+
+    # GASVEL FUNCTIONS
+    def get_gasvel(self):
+        return self.get_gasvel_at(*self.pos)
+
+    def get_gasvel_at(self,x,y,z):
+        return interp3d(self.subgrid['gasvel'],
+            (self.subxcenters,self.subycenters,self.subzcenters),(x,y,z))
+
+    def get_gasvel_grid(self):
+        vphi   = self.subgrid['gasvx']
+        vr     = self.subgrid['gasvy']
+        vtheta = self.subgrid['gasvz']
+        phi   = self.subxcenters
+        r     = self.subycenters
+        theta = self.subzcenters
+        tt,rr,pp = np.meshgrid(theta,r,phi,indexing='ij')
+        # use helper function already written in Mesh
+        vx,vy,vz = self.mesh._vel_sphere2cart(pp,rr,tt,vphi,vr,vtheta)
+        arrs = (vx,vy,vz)
+        return np.stack(arrs,axis=-1)
+
+
+
         
 
     def get_drag_coeff(self):

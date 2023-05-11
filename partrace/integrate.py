@@ -31,7 +31,7 @@ class Solver():
         self.history = history
         self.sol = sol
 
-def unstack(a, axis=0):
+def unstack(a, axis=-1):
     """Helper function to unpack arrays. Gradient arrays have shape
     (nz,ny,nx,3) for example. This function will return 3 arrays each
     with shape (nz,ny,nx).

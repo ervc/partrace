@@ -29,7 +29,7 @@ def create_grid(fargodir,nx,ny,nz=1,domain=None,
     g = grid.Grid(fargodir,nx,ny,nz,domain,nout,quiet)
     return g,g.mesh
 
-def create_mesh(fargodir, states='all', n=-1, quiet=False, regrid=False):
+def create_mesh(fargodir, n=0, quiet=False):
     """
     Create a :class:`Mesh <partrace.mesh.Mesh>` object from 
     FARGO3D output.
@@ -59,7 +59,7 @@ def create_mesh(fargodir, states='all', n=-1, quiet=False, regrid=False):
     -------
     Mesh
     """
-    m = mesh.Mesh(fargodir,states,n,quiet,regrid)
+    m = mesh.Mesh(fargodir,n,quiet)
     return m
 
 def create_particle(mesh,x0,y0,z0=0,a=0.01,rho_s=2.):

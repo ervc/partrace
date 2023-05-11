@@ -56,7 +56,7 @@ class Planet():
         self.mesh = mesh
         self.name = name
         self.fname = f'planet{planet_no}.dat'
-        self.nout = mesh.n['gasdens']
+        self.nout = mesh.nout
         self.pos = np.zeros(3)
         self.vel = np.zeros(3)
         self.mass = 0

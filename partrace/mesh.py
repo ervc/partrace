@@ -16,13 +16,8 @@ class Mesh():
     Parameters
     ----------
     fargodir : str
-        directory where fargo output data can be found
-    states : str, list
-        list of states to read in from fargooutput. If states=='all',
-        then states of ['gasdens','gasvx','gasvy','gasvz','gasenergy']
-        are read in. If states==None, then no states will be read in.
-        default: 'all'      
-    n : int
+        directory where fargo output data can be found     
+    nout : int
         which number output to read. i.e. gas density will be read in
         fargodir/gasdens{n}.dat. If n==-1, then the last output will be
         read. Values are saved in :py:attr:`Mesh.n` dictionary for 
@@ -67,56 +62,17 @@ class Mesh():
     {x,y,z}edges : ndarray
         Array of length {nx+1,ny+1,nz+1} containing fargo cell edges.
     """
-    def __init__(self, fargodir, states='all', n=-1, quiet=False, regrid=False):
+    def __init__(self, fargodir, nout=0, quiet=False):
         self.fargodir = fargodir
         self.ndim = 3
         self.rescaled = False
-        self.read_variables(n)
+        self.nout = nout
+        self.read_variables()
         if self.variables['UNITS'] == 'code':
             self.rescale_variables()
             self.rescaled = True
         self.get_domain()
-        self.zgrid,self.ygrid,self.xgrid = np.meshgrid(self.zcenters,
-            self.ycenters,self.xcenters,indexing='ij')
         self.quiet = quiet
-        self.regrid = regrid
-        self.state = {}
-        self.interpolators = {}
-        self.n = {}
-        if states is None:
-            if not quiet:
-                print('Initialized, self.state and self.n are empty,'
-                    + ' states can be read in using read_state()\n')
-        else:
-            if states == 'all':
-                states = ['gasdens','gasvx','gasvy','gasvz','gasenergy']
-            for state in states:
-                # set gasvz to 0 if 2dimensional output
-                if state == 'gasvz' and self.ndim == 2:
-                    self.state['gasvz'] = np.zeros_like(self.state['gasvx'])
-                else:
-                    self.read_state(state,n)
-                # create an interpolator to get values off grid
-                # self.interpolators[state] = self.create_interpolator(state)
-            # create grid for gas diffusivity
-            if 'gasenergy' in self.state:
-                print('creating gasdiff grid')
-                self.create_gasdiff_grid()
-                # self.interpolators['gasdiff'] = self.create_interpolator('gasdiff')
-            # get grid of rho gradient
-            if 'gasdens' in self.state:
-                print('creating gradrho grid')
-                self.create_rho_grad_grid()
-                # self.interpolators['gradrho'] = self.create_interpolator('gradrho')
-                # self.interpolators['gradrho_polar'] = self.create_interpolator('gradrho_polar')
-            if not quiet:
-                outstr = ('Initialized, self.states contains:\n'
-                    + f'{list(self.state.keys())}\n'
-                    + 'read in from outputs:\n')
-                for state in self.n.keys():
-                    outstr += f'n = {self.n[state]} for {state}\n'
-                print(outstr)
-
 
         if not quiet:
                 self.confirm()
@@ -153,6 +109,7 @@ class Mesh():
         conf_msg = ''
         conf_msg += 'Mesh created\n'
         conf_msg += f'Read in from {self.fargodir}\n'
+        conf_msg += f'nout = {self.nout}\n'
         conf_msg += f'nx, ny, nz = {self.nx, self.ny, self.nz}\n'
         conf_msg += f'ndim = {self.ndim}\n'
         conf_msg += f'coord. system = {self.variables["COORDINATES"]}\n'
@@ -169,9 +126,10 @@ class Mesh():
 
         print(conf_msg)
 
-    def read_variables(self,n=0):
+    def read_variables(self):
         """Reads variables.par file and cretes dict of variables. Also
         read in from summary0.dat to get scaling laws"""
+        n = self.nout
         self.variables={}
         with open(self.fargodir+'/variables.par','r') as f:
             for line in f:
@@ -360,7 +318,7 @@ class Mesh():
         return xdot,ydot,zdot
 
 
-    def read_state(self,state,n=-1):
+    def read_state(self,state):
         """readin the grid data for output 'state' at output number n. 
         Default n=-1 gives last ouptut.
 
@@ -369,6 +327,7 @@ class Mesh():
         """
         MAXN = 1000
 
+        n = self.nout
 
         if n < 0:
             lastn = 0
@@ -383,7 +342,6 @@ class Mesh():
                         + ' May not be the last output.')
             n = lastn+1+n
 
-        self.n[state] = n
         statefile = self.fargodir+f'/{state}{n}.dat'
 
         state_arr = np.fromfile(statefile).reshape(self.nz,self.ny,self.nx)
@@ -401,318 +359,7 @@ class Mesh():
                 if '-DISOTHERMAL' not in self.variables['FLAGS']:
                     print('WARNING: gasenergy will not be rescaled correctly if eos != isothermal!\n')
                 state_arr *= LENGTH/TIME
-        self.state[state] = state_arr
         return state_arr
-
-
-    def plot_state(self,state,ax=None,log=True,itheta=-1,yunits=None,
-                    *args,**kwargs):
-        """Create 2d plot of state and return image"""
-        if state not in self.state:
-            arr = self.read_state(state)
-        else:
-            arr = self.state[state]
-
-        if ax == None:
-            fig,ax = plt.subplots()
-
-        label = state
-        if log:
-            arr = np.log10(arr)
-            label = 'log '+state
-
-        yscale = 1
-        if yunits == 'au':
-            yscale = 1/AU
-
-        im = ax.pcolormesh(self.xedges,self.yedges*yscale,arr[itheta],
-                            *args,**kwargs)
-        cb = plt.colorbar(im,ax=ax,label=label,location='bottom')
-
-        dt_out = float(self.variables['DT'])*float(self.variables['NINTERM'])
-        GM = float(self.variables['G'])*float(self.variables['MSTAR'])
-        R = float(self.variables['R0'])
-        R3 = R*R*R
-        torbit = TWOPI * np.sqrt(R3/GM)
-        norbit = self.n[state]*dt_out/torbit
-        title = f'Norbit = {norbit:g}'
-        if self.ndim == 3:
-            title+=f'\ntheta = {self.zcenters[itheta]:.3f}'
-        ax.set_title(title)
-
-        units = 'unitless'
-        if yunits:
-            units = yunits
-
-        else:
-            if self.variables['UNITS'] == 'CGS':
-                units = 'cm'
-            elif self.variables['UNITS'] == 'MKS':
-                units = 'm'
-        ax.set(
-            xlabel='azimuth [radians]',
-            ylabel=f'radius [{units}]'
-        )
-
-        return im
-
-    def get_state_from_cart(self,state,x,y,z=None):
-        """Get the value of 'state' at a given cartesian coordinate
-        """
-
-        # setup interpolator
-        interp = self.interpolators[state]
-
-        if y is None:
-            y = np.zeros_like(x)
-        if z is None:
-            z = np.zeros_like(x)
-
-        iterb = True
-        try:
-            iter(x)
-        except:
-            iterb = False
-
-        # do the interpolation
-        if self.variables['COORDINATES'] == 'cylindrical':
-            az,r,z = self._cart2cyl(x,y,z)
-            if self.ndim == 2:
-                if iterb:
-                    return interp(np.stack([r,az],axis=-1))
-                else:
-                    return interp(np.stack([r,az],axis=-1))[0]
-            else:
-                if iterb:
-                    return interp(np.stack([z,r,az],axis=-1))
-                else:
-                    return interp(np.stack([z,r,az],axis=-1))[0]
-        elif self.variables['COORDINATES'] == 'spherical':
-            az,r,pol = self._cart2sphere(x,y,z)
-            if self.ndim == 2:
-                return interp(np.stack([r,az],axis=-1))
-            else:
-                if self.regrid:
-                    if iterb:
-                        return interp(pol,r,az)
-                    else:
-                        return interp([pol],[r],[az])
-                else:
-                    return interp(np.stack([pol,r,az],axis=-1))
-
-        else:
-            raise Exception('uncertain on coordinates,'
-                  +' cannot interpolate')
-            return None
-
-
-    def create_interpolator(self,state):
-        """Creates the interpolator function using scipy interpolate
-        If the dimension of the mesh is 2d then interpolator will be 2d,
-        this avoids issues with interpolating from a single z component
-        """
-        from scipy.interpolate import RegularGridInterpolator
-        from regulargrid.cartesiangrid import CartesianGrid
-
-        Y = self.ycenters
-
-        """
-        reflective z boundary
-        z  = pi/2 - delta     delta = pi/2 - z
-        z' = pi/2 + delta
-        z' = (pi/2 - delta) + 2*delta
-        z' = z + 2*(pi/2 - z)
-           = z + pi - 2*z
-           = pi-z
-        """
-        lenz = len(self.zcenters)
-        Z = np.zeros(2*lenz)
-        Z[0:lenz] = self.zcenters
-        Z[lenz:] = PI - self.zcenters[::-1]
-        
-        # periodic boundary conditions for x axis
-        X = np.zeros(len(self.xcenters)+2)
-
-        stateshape = self.state[state].shape
-        extradim = None
-        if len(stateshape) > 3:
-            extradim = stateshape[-1]
-            # print('found an extra dimension! shape = ',stateshape)
-
-        # create the array and fill in extra X columns
-        if extradim is None:
-            arr = np.zeros((len(Z),len(Y),len(X)))
-        else:
-            arr = np.zeros((len(Z),len(Y),len(X),extradim))
-        for i in range(self.nx):
-            X[i+1] = self.xcenters[i]
-            arr[0:lenz,:,i+1] = self.state[state][:,:,i]
-        X[0]  = self.xcenters[-1] - TWOPI
-        X[-1] = self.xcenters[0]  + TWOPI
-        arr[0:lenz,:,0]  = self.state[state][:,:,-1]
-        arr[0:lenz,:,-1] = self.state[state][:,:,0]
-        
-        # flip and repeat over the z axis
-        # if the gas vel, need to make velocities negative
-        if state == 'gasvz':
-            arr[-1:lenz-1:-1,:,:] = -arr[0:lenz,:,:]
-        else:
-            arr[-1:lenz-1:-1,:,:] = arr[0:lenz,:,:]
-
-        # setup interpolator
-        if self.ndim == 3:
-            interp = RegularGridInterpolator(
-                (Z,Y,X),arr,method='linear',bounds_error=False)
-        else:
-            interp = RegularGridInterpolator(
-                (Y,X),arr[0],method='linear',bounds_error=False)
-
-        # interpolate onto square grid
-        # Z and X are already regular spaced, regrid Y to be square
-        if self.regrid:
-            if not self.quiet:
-                print('regridding', state)
-            sY = np.linspace(Y.min(),Y.max(),256)
-            zz,yy,xx = np.meshgrid(Z,sY,X,indexing='ij')
-            sarr = interp(np.stack([zz,yy,xx],axis=-1))
-            limits = [(Z[0],Z[-1]),(Y[0],Y[-1]),(X[0],X[-1])]
-            interp = CartesianGrid(limits,sarr)
-            if not self.quiet:
-                print('created square grid for ',state)
-
-        return interp
-
-    def create_Stokes_grid(self,a,rho_s):
-        """Create a grid of Stokes values on original FARGO grid
-        IMPORTANT! Requires eos=isothermal. otherwise cs is not gasenergy
-        This will be modified later to work for everything
-        """
-        cs = self.state['gasenergy'] # nz,ny,nx
-        rhog = self.state['gasdens'] # nz,ny,nx
-        G = float(self.variables['G']) # scalar
-        Mstar = float(self.variables['MSTAR']) # scalar
-        GM = G*Mstar # scalar
-        Rgrid = self.ygrid # nz,ny,nx
-        R3 = Rgrid*Rgrid*Rgrid # nz,ny,nx
-        omega = np.sqrt(GM/R3) # nz,ny,nx
-        return a*rho_s/(cs*rhog) * omega 
-
-    def create_gasdiff_grid(self):
-        """Create a grid of gas diffusivities on og FARGO grid
-        Dg = nu = alpha*cs*H
-        IMPORTANT! Requires eos=isothermal.
-        """
-        if '-DVISCOSITY' in self.variables['FLAGS']:
-            Dg_grid = np.ones_like(self.state['gasdens'])
-        elif '-DALPHAVISCOSITY' in self.variables['FLAGS']:
-            R = self.ygrid # nz,ny,nx
-            ar = float(self.variables['ASPECTRATIO'])
-            fi = float(self.variables['FLARINGINDEX'])
-            R0 = float(self.variables['R0'])
-            H = R*ar*(R/R0)**fi
-            cs = self.state['gasenergy']
-            alpha = float(self.variables['ALPHA'])
-            Dg_grid = alpha*cs*H
-        else:
-            raise Exception("Cannot determine diffusivity, disk has none?")
-        self.state['gasdiff'] = Dg_grid
-        return self.state['gasdiff']
-
-    def create_partdiff_grid(self,a,rho_s,St=None):
-        """Create a grid of particle diffusivites on FARGO grid
-        D = Dg/(1+St^2)
-        """
-        if St is None:
-            St = self.create_Stokes_grid(a,rho_s)
-
-        if 'gasdiff' not in self.state:
-            Dg = self.create_gasdiff_grid()
-        else:
-            Dg = self.state['gasdiff']
-
-        self.state['partdiff'] = Dg/(1+St*St)
-        self.create_partdiff_interp()
-        return Dg/(1+St*St)
-
-    def create_partdiff_interp(self):
-        self.interpolators['partdiff'] = self.create_interpolator('partdiff')
-
-    def get_partdiff_at(self,x,y,z):
-        phi = np.arctan2(y,x)
-        r = np.sqrt(x*x + y*y + z*z)
-        theta = np.arccos(z/r)
-        interp = self.interpolators['partdiff']
-        return interp(np.stack([theta,r,phi],axis=-1))
-
-    def get_dDdphi(self):
-        if 'partdiff' not in self.state:
-            self.create_partdiff_grid
-        diff = self.state['partdiff']
-        phi = self.xgrid
-
-        dDdphi = np.zeros_like(diff)
-        dDdphi[:,:,1:-1] = (diff[:,:,2:]-diff[:,:,:-2])/(phi[:,:,2:]-diff[:,:,:-2])
-        dDdphi[:,:,0] = (diff[:,:,1]-diff[:,:,-1])/(phi[:,:,1]-phi[:,:,-1]-TWOPI)
-        dDdphi[:,:,-1] = (diff[:,:,0]-diff[:,:,-2])/(phi[:,:,0]-phi[:,:,-2]+TWOPI)
-
-        return dDdphi
-
-    def get_dDdr(self):
-        if 'partdiff' not in self.state:
-            self.create_partdiff_grid
-        diff = self.state['partdiff']
-        r = self.ygrid
-
-        dDdr = np.zeros_like(diff)
-        dDdr[:,1:-1] = (diff[:,2:]-diff[:,:-2])/(r[:,2:]-r[:,:-2])
-        dDdr[:,0] = (diff[:,1]-diff[:,0])/(r[:,1]-r[:,0])
-        dDdr[:,-1] = (diff[:,-1]-diff[:,-2])/(r[:,-1]-r[:,-2])
-
-        return dDdr
-
-    def get_dDdtheta(self):
-        if 'partdiff' not in self.state:
-            self.create_partdiff_grid
-        diff = self.state['partdiff']
-        theta = self.zgrid
-
-        dDdtheta = np.zeros_like(diff)
-        dDdtheta[1:-1] = (diff[2:]-diff[:-2])/(theta[2:]-theta[:-2])
-        dDdtheta[0] = (diff[1]-diff[0])/(theta[1]-theta[0])
-        dDdtheta[-1] = (diff[-1]-diff[-2])/(theta[-1]-theta[-2])
-
-        return dDdtheta
-
-    def create_diff_grad(self):
-        dDdphi   = self.get_dDdphi()
-        dDdr     = self.get_dDdr()
-        dDdtheta = self.get_dDdtheta()
-
-        arrs = (dDdphi,dDdr,dDdtheta)
-        self.state['graddiff_polar'] = np.stack(arrs,axis=-1)
-
-        phi   = self.xgrid
-        r     = self.ygrid
-        theta = self.zgrid
-
-        # chain rule
-        dphidx = -np.sin(phi)/r/np.sin(theta)
-        dphidy =  np.cos(phi)/r/np.sin(theta)
-        dphidz =  0
-        drdx = np.cos(phi)*np.sin(theta)
-        drdy = np.sin(phi)*np.sin(theta)
-        drdz = np.cos(theta)
-        dthetadx =  np.cos(phi)*np.cos(theta)/r
-        dthetady =  np.sin(phi)*np.cos(theta)/r
-        dthetadz = -np.sin(theta)/r
-
-        dDdx = dDdphi*dphidx + dDdr*drdx + dDdtheta*dthetadx
-        dDdy = dDdphi*dphidy + dDdr*drdy + dDdtheta*dthetady
-        dDdz = dDdphi*dphidz + dDdr*drdz + dDdtheta*dthetadz
-
-        cartarrs = (dDdx,dDdy,dDdz)
-        self.state['graddiff'] = np.stack(cartarrs,axis=-1)
-        return self.state['graddiff']
 
 
     def get_scaleheight(self,x,y,z=0):
@@ -746,19 +393,18 @@ class Mesh():
         """Determine the diffusivity (aka viscosity) at a given location
         D = alpha*cs*H = alpha*H**2*omega = nu
         """
-        return self.get_state_from_cart('gasdiff',x,y,z)
-        # if '-DVISCOSITY' in self.variables['FLAGS']:
-        #     return np.ones_like(x)*float(self.variables['NU'])
-        # elif '-DALPHAVISCOSITY' in self.variables['FLAGS']:
-        #     H = self.get_scaleheight(x,y,z)
-        #     cs = self.get_soundspeed(x,y,z)
-        #     alpha = float(self.variables['ALPHA'])
-        #     return alpha*cs*H
-        # else:
-        #     if not self.quiet:
-        #         print('Viscosity cannot be determined from variables.'
-        #             +' Using D=0')
-        #     return 0
+        if '-DVISCOSITY' in self.variables['FLAGS']:
+            return np.ones_like(x)*float(self.variables['NU'])
+        elif '-DALPHAVISCOSITY' in self.variables['FLAGS']:
+            H = self.get_scaleheight(x,y,z)
+            cs = self.get_soundspeed(x,y,z)
+            alpha = float(self.variables['ALPHA'])
+            return alpha*cs*H
+        else:
+            if not self.quiet:
+                print('Viscosity cannot be determined from variables.'
+                    +' Using D=0')
+            return 0
 
     def sigma(self):
         """Return surface density array, shape (mesh.ny, mesh.nx)"""
