@@ -12,7 +12,7 @@ from time import time
 # partrace imports
 import partrace as pt
 import partrace.constants as const
-from partrace.integrate import integrate, create_mega_interpolator
+from partrace.integrate import integrate
 import partrace.partraceio as ptio
 
 # read in arguments
@@ -62,6 +62,7 @@ def main():
     print('partfile: ',params["partfile"])
     print('output dirrectory: ',params["outputdir"])
     print('number of particles: ',NPART)
+    print(f'tf = {TF} sec = {TF/const.YR} yr')
     # check number of processors
     print('cpus availables = ',nproc,flush=True)
 
@@ -72,19 +73,17 @@ def main():
     npart = NPART
 
     # create mesh
-    mesh = pt.create_mesh(fargodir,n=n,regrid=False)
+    mesh = pt.create_mesh(fargodir,n=n)
     minr = mesh.yedges.min()
     maxr = mesh.yedges.max()
-    minv = np.nanmin(np.abs(mesh.state['gasvx']))
-    maxv = np.nanmax(np.abs(mesh.state['gasvx']))
-    n = mesh.n['gasdens']
 
     # readin planet
     planet = pt.create_planet(mesh,0,'Jupiter')
 
     # set up solver params
-    t0 = T0
+    t0 = 0
     tf = TF
+    tstop_scale = 1.
     if MAXSTEP:
         maxdt = 1/10*const.TWOPI/mesh.get_Omega(minr,0,0)
     else:
@@ -96,15 +95,10 @@ def main():
 
     print(f'particle size, density = {a} cm, {rho_s} g cm-3')
 
-    # create the mega interpolator
-    print('Creating Mega Interpolator',flush=True)
-    mesh.MegaInterp = create_mega_interpolator(mesh,a,rho_s)
-    print('Done!\n')
-
     locs = LOCS
     pargs = (mesh,a,rho_s)
     kw = {'max_step':maxdt}
-    intargs = (t0,tf,planet,kw)
+    intargs = (tf,planet,tstop_scale)
 
     if nproc > 1:
         print('Creating multiprocessing pool...', flush=True)
@@ -120,7 +114,7 @@ def main():
         for arg in allargs:
             allsols.append(helper_func(arg))
 
-    statii = np.zeros(NPART,dtype=int)
+    statii = np.zeros(NPART,dtype='U16')
     ends = np.zeros((NPART,3),dtype=float)
     starts = np.zeros((NPART,3),dtype=float)
     times = np.zeros(NPART)
@@ -144,18 +138,16 @@ def helper_func(args):
     
     Parameters
     ----------
-    locs : ndarray[tuple]
-        ndarray of len nparts, locs[n] = (x0,y0,z0) for particle n
-    pargs : tuple
-        (mesh,a,rho_s) for particle creation
-    intargs : tuple
-        (t0,tf,planet,kw) for integrator where
-        kw = keyword args for integrator
-          maxstep
-          atol
-          rtol
-    n : int
-        particle identifier number
+    args : tuple
+        tuple made up of arguments used for integration:
+        locs : list of all locations
+            such that locs[0] = x0,y0,z0, locs[1] = x1,y1,z1, ...
+        pargs : particle arguments
+            contains mesh, a, rho_s for particle
+        intargs : integration arguments
+            contains tf, planet, tstop_scale
+        n : int
+            number of particle to be integrated
     """
     locs,pargs,intargs,n = args
     x0,y0,z0 = locs[n]
@@ -165,9 +157,9 @@ def helper_func(args):
     savefile = None
     if n%1 == 0:
         savefile = f'{OUTPUTDIR}/history_{n}.npz'
-    t0,tf,planet,kw = intargs
-    status,end,time = integrate(t0,tf,p,planet,mesh.MegaInterp,savefile=savefile,
-        diffusion=DIFFUSION,partnum=n,**kw)
+    tf,planet,tstop_scale = intargs
+    status,end,time = integrate(p,planet,tf,savefile=savefile,
+        tstop_scale=tstop_scale,diffusion=DIFFUSION)
     print('    finished particle ',n,flush=True)
     del(p)
     return status,end,time
@@ -175,7 +167,7 @@ def helper_func(args):
 def count_success(allsols):
     ns = 0
     for s in allsols:
-        if s==0:
+        if s=='finished':
             ns+=1
     return ns
 
