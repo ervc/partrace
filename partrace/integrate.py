@@ -200,9 +200,13 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
     status = 'running'
     i=0
     dt = 0
+    nout = 100
+    touts = np.linspace(0,tf,nout)
+    iout = 0
     while status=='running':
-        print(f'{time:.4e}/{tf:.2e} \t {i}/{maxN} \t {dt/const.YR = :.3e}\r',
-              end='',flush=True)
+        if time > touts[iout]:
+            print(f'{time:.4e}/{tf:.2e} \t {i}/{maxN} \t {dt/const.YR = :.3e}')
+            iout += 1
         maxdt = min(tf-time,0.1*const.YR)
         try:
             time = rkstep_particle(
