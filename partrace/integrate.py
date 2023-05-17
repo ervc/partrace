@@ -205,7 +205,7 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
     iout = 0
     while status=='running':
         if time > touts[iout]:
-            print(f'{time:.4e}/{tf:.2e} \t {i}/{maxN} \t {dt/const.YR = :.3e}')
+            print(f'{time:.4e}/{tf:.2e} \t {i}/{maxN} \t {dt/const.YR = :.3e}',flush=True)
             iout += 1
         maxdt = min(tf-time,0.1*const.YR)
         try:
