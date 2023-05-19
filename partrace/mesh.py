@@ -138,7 +138,7 @@ class Mesh():
 
         units = 'code'
         flags = []
-        with open(self.fargodir+f'/summary{n:d}.dat','r') as f:
+        with open(self.fargodir+f'/summary{n}.dat','r') as f:
             header = False
             section = ''
             for line in f:

@@ -52,6 +52,17 @@ def dYdt(t,Y,part,planet,diffusion=True):
         Vrho = diff/rho * gradrho
         Vdiff = graddiff
         dXdt = V + Vrho + Vdiff
+
+    if tstop < const.COUPLING:
+        # if stopping is low, then just integrate particle using
+        # gas velocity.
+        # dVdt = 0, velocity will be set later, 
+        # don't worry in integration
+        dXdt = vgas
+        if diffusion:
+            dXdt = vgas + Vrho + Vdiff
+        dVdt = np.zeros(3)
+        return np.array([*dXdt, *dVdt])
     
     # velocity derivative
     # drag accel
@@ -119,8 +130,15 @@ def get_max_dt(part,maxdt=np.inf,tstop_scale=1):
     float
         recommended stepsize
     """
-    torb = 1/20 * 1/part.mesh.get_Omega(*part.pos)
-    tstop = tstop_scale*part.get_stopping_time()
+    omega = part.mesh.get_Omega(*part.pos)
+    torb = 1/20 * 1/omega
+    St = part.get_stokes()
+    # only use stopping time as a limit if particle is not
+    # strongly coupled with the gas
+    if St < const.COUPLING:
+        tstop = np.inf
+    else:
+        tstop = tstop_scale*St/omega
     dt = min(torb,tstop,maxdt)
     return dt
 
@@ -153,7 +171,13 @@ def rkstep_particle(part,planet,t,maxdt=np.inf,tstop_scale=1,diffusion=True):
     args = (part,planet,diffusion)
     Yi = rk4(dYdt,t,Y,dt,*args)
     Xi = Yi[:3]
-    Vi = Yi[3:]
+    St = part.get_stokes()
+    # if coupled set velocity to gas velocity, otherwise get velocity
+    # from integration.
+    if St < const.COUPLING:
+        Vi = part.get_gasvel_at(*Xi)
+    else:
+        Vi = Yi[3:]
     if diffusion:
         ### find X'
         graddiff = part.get_gradpartdiff_at(*X)

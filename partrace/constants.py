@@ -53,3 +53,7 @@ PI = np.pi
 #: :obj:`float`
 #: 2pi
 TWOPI = 2*PI
+
+#: :obj:`float`
+#: Stokes cutoff for complete coupling with gas
+COUPLING = 1.e-3
