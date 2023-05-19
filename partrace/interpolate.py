@@ -93,6 +93,9 @@ def interp3d(arr,coords,pos):
     # check for nans between interpolations
     arr2 = interp1d(arr,THETA,theta)
     if np.isnan(np.sum(arr2)):
+        print('\n')
+        print(f'{theta = :e}')
+        print(THETA)
         raise ValueError("interpolation in theta is out of bounds")
 
     arr1 = interp1d(arr2,R,r)

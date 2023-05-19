@@ -53,7 +53,7 @@ def dYdt(t,Y,part,planet,diffusion=True):
         Vdiff = graddiff
         dXdt = V + Vrho + Vdiff
 
-    if tstop < const.COUPLING:
+    if St < const.COUPLING:
         # if stopping is low, then just integrate particle using
         # gas velocity.
         # dVdt = 0, velocity will be set later, 
@@ -114,7 +114,7 @@ def rk4(f,t,y,h,*args,**kwargs):
     k4 = f(t+h,y+h*k3,*args,**kwargs)
     return y + 1/6*(k1+2*k2+2*k3+k4)*h
 
-def get_max_dt(part,maxdt=np.inf,tstop_scale=1):
+def get_max_dt(part,maxdt=np.inf,tstop_scale=1,diffusion=True):
     """Get maximum stable dt
     Parameters
     ----------
@@ -124,6 +124,8 @@ def get_max_dt(part,maxdt=np.inf,tstop_scale=1):
         hard max on the stepsize
     tstop_scale : float
         scaling for maximum stepsize relative to stopping time
+    diffusion : boolean
+        If diffusion is true, set limit on diffusion step as well
 
     Returns
     -------
@@ -139,7 +141,20 @@ def get_max_dt(part,maxdt=np.inf,tstop_scale=1):
         tstop = np.inf
     else:
         tstop = tstop_scale*St/omega
+
     dt = min(torb,tstop,maxdt)
+    if diffusion:
+        X = part.pos
+
+        graddiff = part.get_gradpartdiff_at(*X)
+        dtdiff = 1.e6*np.linalg.norm(X)/np.linalg.norm(graddiff)
+
+        rhog = part.get_rho_at(*X)
+        diff = part.get_partdiff_at(*X)
+        gradrhog = part.get_gradrho_at(*X)
+        dtrho = 1e-5*rhog/diff*np.linalg.norm(X)/np.linalg.norm(gradrhog)
+
+        dt = min(dt,dtdiff,dtrho)
     return dt
 
 def rkstep_particle(part,planet,t,maxdt=np.inf,tstop_scale=1,diffusion=True):
@@ -164,7 +179,7 @@ def rkstep_particle(part,planet,t,maxdt=np.inf,tstop_scale=1,diffusion=True):
     float
         time after step, t + dt
     """
-    dt = get_max_dt(part,maxdt,tstop_scale)
+    dt = get_max_dt(part,maxdt,tstop_scale,diffusion)
     X = part.pos
     V = part.vel
     Y = np.array([*X,*V])
@@ -218,6 +233,11 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
     """
     traj = [[*part.pos0,*part.vel0]]
     times = [0]
+    Stokes = [part.get_stokes()]
+
+    def save_output():
+        np.savez(savefile,history=traj,times=times,Stokes=Stokes)
+        print('\nSaved output to: ',savefile)
     
     maxN = int(1e6)
     time = 0
@@ -237,7 +257,7 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
                 part,planet,time,maxdt=maxdt,
                 tstop_scale=tstop_scale,diffusion=diffusion)
         except ValueError as e:
-            np.savez(savefile,history=traj,times=times,gasvel=gasvel)
+            save_output()
             status = 'failed'
             print('Solver failed with error message:')
             print(e)
@@ -245,6 +265,7 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
             return status
         traj.append([*part.pos,*part.vel])
         times.append(time)
+        Stokes.append(part.get_stokes())
         dt = time-times[-2]
         
         partr = np.linalg.norm(part.pos)
@@ -261,7 +282,6 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
     
         i+=1
         
-    np.savez(savefile,history=traj,times=times)
-    print('\nSaved output to: ',savefile)
+    save_output()
     
     return status, traj[-1], times[-1]
