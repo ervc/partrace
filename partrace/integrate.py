@@ -114,6 +114,40 @@ def rk4(f,t,y,h,*args,**kwargs):
     k4 = f(t+h,y+h*k3,*args,**kwargs)
     return y + 1/6*(k1+2*k2+2*k3+k4)*h
 
+def sigmoid(x,scale=1,center=0):
+    """Return sigmoid function at x
+    Parameters
+    ----------
+    x : float
+        value to return S(x)
+    scale : float
+        steepness of sigmoid
+    center : float
+        center of sigmoid function, S(center) =  0.5
+
+    Returns
+    -------
+    float
+        Value of S(x)
+    """
+    x = (x-center)*scale
+    return 1/(1+np.exp(-x))
+
+def inv_sigmoid(x,*args,**kwargs):
+    """ Return the inverse of the sigmoid, helpful for tstop calc, as
+    1/S will blow up towards negative infinity
+    Parameters
+    ----------
+    args, kwargs
+        passed to sigmoid()
+
+    Returns
+    -------
+    float
+        value of 1/S(x)
+    """
+    return 1/sigmoid(x,*args,**kwargs)
+
 def get_max_dt(part,maxdt=np.inf,tstop_scale=1,diffusion=True):
     """Get maximum stable dt
     Parameters
@@ -135,19 +169,19 @@ def get_max_dt(part,maxdt=np.inf,tstop_scale=1,diffusion=True):
     omega = part.mesh.get_Omega(*part.pos)
     torb = 1/20 * 1/omega
     St = part.get_stokes()
-    # only use stopping time as a limit if particle is not
-    # strongly coupled with the gas
-    if St < const.COUPLING:
-        tstop = np.inf
-    else:
-        tstop = tstop_scale*St/omega
+    logSt = np.log10(St)
 
-    dt = min(torb,tstop,maxdt)
+    tstop = tstop_scale*St/omega
+    # scale stopping time max dt with stokes number
+    # small stokes = coupled to gas = can take larger step sizes
+    dtstop = inv_sigmoid(logSt,scale=10,center=np.log10(const.COUPLING))*tstop_scale*St/omega
+
+    dt = min(torb,dtstop,maxdt)
     if diffusion:
         X = part.pos
 
         graddiff = part.get_gradpartdiff_at(*X)
-        dtdiff = 1.e6*np.linalg.norm(X)/np.linalg.norm(graddiff)
+        dtdiff = 1.e-6*np.linalg.norm(X)/np.linalg.norm(graddiff)
 
         rhog = part.get_rho_at(*X)
         diff = part.get_partdiff_at(*X)
