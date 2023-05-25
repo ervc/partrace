@@ -88,7 +88,7 @@ class Planet():
             # catch case where planet output is messed up
             with open(self.mesh.fargodir+'/'+self.fname,'r') as f:
                 lines = f.readlines()
-                line0 = lines[0]
+                line0 = lines[-1]
                 nout,x,y,z,vx,vy,vz,mass,time,omegaframe = map(float,
                                                                line.split())
 

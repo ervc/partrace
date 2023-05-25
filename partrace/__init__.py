@@ -129,9 +129,13 @@ def read_params(paramfile):
     """
     return partraceio.read_input(paramfile)
 
-def unstack(a,axis=0):
-    """alias for integrate.unstack()"""
-    return integrate.unstack(a,axis)
+def unstack(a, axis=-1):
+    """Helper function to unpack arrays. Gradient arrays have shape
+    (nz,ny,nx,3) for example. This function will return 3 arrays each
+    with shape (nz,ny,nx).
+    """
+    import numpy as np
+    return np.moveaxis(a, axis, 0)
 
 def get_nparts(partfile):
 

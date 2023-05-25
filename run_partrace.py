@@ -155,7 +155,7 @@ def helper_func(args):
     p = pt.create_particle(mesh,x0,y0,z0,a,rho_s)
     print('starting particle ',n,flush=True)
     savefile = None
-    if n%1 == 0:
+    if n%10 == 0:
         savefile = f'{OUTPUTDIR}/history_{n}.npz'
     tf,planet,tstop_scale = intargs
     status,end,time = integrate(p,planet,tf,savefile=savefile,

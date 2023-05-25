@@ -329,18 +329,18 @@ class Mesh():
 
         n = self.nout
 
-        if n < 0:
-            lastn = 0
-            for i in range(MAXN+1):
-                try:
-                    open(self.fargodir+f'/{state}{i}.dat')
-                    lastn = i
-                except FileNotFoundError:
-                    break
-            if lastn == MAXN-1:
-                print(f'WARNING: Reading in state from output {lastn}=MAXN.'
-                        + ' May not be the last output.')
-            n = lastn+1+n
+        # if n < 0:
+        #     lastn = 0
+        #     for i in range(MAXN+1):
+        #         try:
+        #             open(self.fargodir+f'/{state}{i}.dat')
+        #             lastn = i
+        #         except FileNotFoundError:
+        #             break
+        #     if lastn == MAXN-1:
+        #         print(f'WARNING: Reading in state from output {lastn}=MAXN.'
+        #                 + ' May not be the last output.')
+        #     n = lastn+1+n
 
         statefile = self.fargodir+f'/{state}{n}.dat'
 
