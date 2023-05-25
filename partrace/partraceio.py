@@ -8,9 +8,9 @@ def read_input(f_in):
     if not os.path.exists(f_in):
         raise FileNotFoundError(f"Cannot find input file: '{f_in}'")
 
-    strkeys = ['fargodir','outputdir','partfile']
+    strkeys = ['fargodir','outputdir','partfile','nout']
     fltkeys = ['t0','tf','partsize','partdens']
-    intkeys = ['nout']
+    # intkeys = ['nout']
     boolkeys = ['diffusion']
 
     defaults = configparser.ConfigParser()
