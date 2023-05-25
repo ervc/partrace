@@ -291,7 +291,8 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
                 part,planet,time,maxdt=maxdt,
                 tstop_scale=tstop_scale,diffusion=diffusion)
         except ValueError as e:
-            save_output()
+            if savefile:
+                save_output()
             status = 'failed'
             print('Solver failed with error message:')
             print(e)
@@ -315,7 +316,8 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
             status = 'finished'
     
         i+=1
-        
-    save_output()
+    
+    if savefile:
+        save_output()
     
     return status, traj[-1], times[-1]
