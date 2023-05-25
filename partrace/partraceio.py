@@ -10,7 +10,7 @@ def read_input(f_in):
 
     strkeys = ['fargodir','outputdir','partfile','nout']
     fltkeys = ['t0','tf','partsize','partdens']
-    # intkeys = ['nout']
+    intkeys = []
     boolkeys = ['diffusion']
 
     defaults = configparser.ConfigParser()
