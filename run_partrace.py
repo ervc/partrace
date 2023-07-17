@@ -84,7 +84,8 @@ def main():
     tf = TF
     tstop_scale = 1.
     if MAXSTEP:
-        maxdt = 1/10*const.TWOPI/mesh.get_Omega(2.5*const*AU,0,0)
+        # 1/10 of an orbit = 1/10 * TWOPI/OMEGA
+        maxdt = 1/10*const.TWOPI/np.sqrt(const.GMSUN/(2.5*const.AU)**3)
     else:
         maxdt = np.inf
 
