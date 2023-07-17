@@ -3,7 +3,7 @@
 # standard imports
 import numpy as np
 from numpy.random import default_rng
-import multiprocessing as mp
+from multiprocessing.pool import ThreadPool
 import os
 import subprocess
 from time import time
@@ -65,8 +65,8 @@ def main(infile,nproc):
     npart = NPART
 
     # create mesh
-    # mesh = pt.create_mesh(fargodir,n=n)
-    # minr = mesh.yedges.min()
+    mesh = pt.create_mesh(fargodir,n=n)
+    minr = mesh.yedges.min()
     # maxr = mesh.yedges.max()
 
     # readin planet
@@ -78,7 +78,7 @@ def main(infile,nproc):
     tstop_scale = 1.
     if MAXSTEP:
         # 1/10 of an orbit = 1/10 * TWOPI/OMEGA
-        maxdt = 1/10*const.TWOPI/np.sqrt(const.GMSUN/(2.5*const.AU)**3)
+        maxdt = 1/10*const.TWOPI/mesh.get_Omega(minr,0,0)
     else:
         maxdt = np.inf
 
@@ -89,13 +89,13 @@ def main(infile,nproc):
     print(f'particle size, density = {a} cm, {rho_s} g cm-3')
 
     locs = LOCS
-    pargs = (fargodir,a,rho_s)
+    pargs = (mesh,a,rho_s)
     kw = {'max_step':maxdt}
-    intargs = (tf,tstop_scale)
+    intargs = (tf,OUTPUTDIR,tstop_scale,DIFFUSION)
 
     if nproc > 1:
         print('Creating multiprocessing pool...', flush=True)
-        with mp.Pool(processes=nproc) as pool:
+        with ThreadPool(processes=nproc) as pool:
             N = np.arange(npart)
             allargs = [(locs,pargs,intargs,n) for n in N]
             allsols = pool.map(helper_func,allargs)
@@ -144,17 +144,17 @@ def helper_func(args):
     """
     locs,pargs,intargs,n = args
     x0,y0,z0 = locs[n]
-    fargodir,a,rho_s = pargs
-    mesh = pt.create_mesh(fargodir,n=n)
+    mesh,a,rho_s = pargs
+    # mesh = pt.create_mesh(fargodir,n=n)
     planet = pt.create_planet(mesh,0,'Jupiter')
     p = pt.create_particle(mesh,x0,y0,z0,a,rho_s)
-    print('starting particle ',n,flush=True)
+    print('starting particle ',n,flush=True)    
+    tf,outputdir,tstop_scale,diffusion = intargs
     savefile = None
     if n%10 == 0:
-        savefile = f'{OUTPUTDIR}/history_{n}.npz'
-    tf,tstop_scale = intargs
+        savefile = f'{outputdir}/history_{n}.npz'
     status,end,time = integrate(p,planet,tf,savefile=savefile,
-        tstop_scale=tstop_scale,diffusion=DIFFUSION)
+        tstop_scale=tstop_scale,diffusion=diffusion)
     print('    finished particle ',n,flush=True)
     del(p)
     return status,end,time
