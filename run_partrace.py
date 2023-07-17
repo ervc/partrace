@@ -14,47 +14,40 @@ import partrace.constants as const
 from partrace.integrate import integrate
 import partrace.partraceio as ptio
 
-# read in arguments
-import argparse
-parser = argparse.ArgumentParser()
-parser.add_argument('infile')
-parser.add_argument('-n','--nproc',type=int,default=1)
-args = parser.parse_args()
-nproc = args.nproc
+def main(infile,nproc):
 
-# get parameters from input file
-params = ptio.read_input(args.infile)
+    # get parameters from input file
+    params = ptio.read_input(args.infile)
 
-# constants
-DIFFUSION = params['diffusion']
-FARGODIR = params['fargodir']
-OUTPUTDIR = params['outputdir']
-A = params['partsize']
-RHOS = params['partdens']
-T0 = params['t0']
-TF = params['tf']
-NOUT = params['nout']
+    # constants
+    DIFFUSION = params['diffusion']
+    FARGODIR = params['fargodir']
+    OUTPUTDIR = params['outputdir']
+    A = params['partsize']
+    RHOS = params['partdens']
+    T0 = params['t0']
+    TF = params['tf']
+    NOUT = params['nout']
 
-LOCS = ptio.read_locations(params['partfile'])
-NPART = len(LOCS)
+    LOCS = ptio.read_locations(params['partfile'])
+    NPART = len(LOCS)
 
-MAXSTEP = True
-SOLVER = 'Radau'
+    MAXSTEP = True
+    SOLVER = 'Radau'
 
-# make the output directory if doesn't exist
-if not os.path.exists(OUTPUTDIR):
-    subprocess.run(['mkdir',OUTPUTDIR])
+    # make the output directory if doesn't exist
+    if not os.path.exists(OUTPUTDIR):
+        subprocess.run(['mkdir',OUTPUTDIR])
 
-ptio.write_paramsfile(params,f'{OUTPUTDIR}/params.ini')
+    ptio.write_paramsfile(params,f'{OUTPUTDIR}/params.ini')
 
-with open(f'{OUTPUTDIR}/variables.out','w+') as f:
-    f.write(f'fargodir = {FARGODIR}\n')
-    f.write(f't0 = {T0}\n')
-    f.write(f'tf = {TF}\n')
-    f.write(f'nout = {NOUT}\n')
-    f.write(f'nparts = {NPART}\n')
+    with open(f'{OUTPUTDIR}/variables.out','w+') as f:
+        f.write(f'fargodir = {FARGODIR}\n')
+        f.write(f't0 = {T0}\n')
+        f.write(f'tf = {TF}\n')
+        f.write(f'nout = {NOUT}\n')
+        f.write(f'nparts = {NPART}\n')
 
-def main():
     print(f'*** PARTRACE {pt.__version__} ***')
     print('Read infile: ',args.infile)
     print('Fargodir: ',FARGODIR)
@@ -175,7 +168,15 @@ def count_success(allsols):
 
 if __name__ == '__main__':
     start = time()
-    main()
+
+    # read in arguments
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('infile')
+    parser.add_argument('-n','--nproc',type=int,default=1)
+    args = parser.parse_args()
+
+    main(args.infile,args.nproc)
     end = time()
     t = end-start
     if not os.path.exists('time_to_run.out'):
