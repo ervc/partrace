@@ -8,7 +8,6 @@ import os
 import subprocess
 from time import time
 
-
 # partrace imports
 import partrace as pt
 import partrace.constants as const
@@ -73,19 +72,19 @@ def main():
     npart = NPART
 
     # create mesh
-    mesh = pt.create_mesh(fargodir,n=n)
-    minr = mesh.yedges.min()
-    maxr = mesh.yedges.max()
+    # mesh = pt.create_mesh(fargodir,n=n)
+    # minr = mesh.yedges.min()
+    # maxr = mesh.yedges.max()
 
     # readin planet
-    planet = pt.create_planet(mesh,0,'Jupiter')
+    # planet = pt.create_planet(mesh,0,'Jupiter')
 
     # set up solver params
     t0 = 0
     tf = TF
     tstop_scale = 1.
     if MAXSTEP:
-        maxdt = 1/10*const.TWOPI/mesh.get_Omega(minr,0,0)
+        maxdt = 1/10*const.TWOPI/mesh.get_Omega(2.5*const*AU,0,0)
     else:
         maxdt = np.inf
 
@@ -96,9 +95,9 @@ def main():
     print(f'particle size, density = {a} cm, {rho_s} g cm-3')
 
     locs = LOCS
-    pargs = (mesh,a,rho_s)
+    pargs = (fargodir,a,rho_s)
     kw = {'max_step':maxdt}
-    intargs = (tf,planet,tstop_scale)
+    intargs = (tf,tstop_scale)
 
     if nproc > 1:
         print('Creating multiprocessing pool...', flush=True)
@@ -151,13 +150,15 @@ def helper_func(args):
     """
     locs,pargs,intargs,n = args
     x0,y0,z0 = locs[n]
-    mesh,a,rho_s = pargs
+    fargodir,a,rho_s = pargs
+    mesh = pt.create_mesh(fargodir,n=n)
+    planet = pt.create_planet(mesh,0,'Jupiter')
     p = pt.create_particle(mesh,x0,y0,z0,a,rho_s)
     print('starting particle ',n,flush=True)
     savefile = None
     if n%10 == 0:
         savefile = f'{OUTPUTDIR}/history_{n}.npz'
-    tf,planet,tstop_scale = intargs
+    tf,tstop_scale = intargs
     status,end,time = integrate(p,planet,tf,savefile=savefile,
         tstop_scale=tstop_scale,diffusion=DIFFUSION)
     print('    finished particle ',n,flush=True)
