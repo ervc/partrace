@@ -11,11 +11,13 @@ def main(args):
         print('no wall time given')
     sb += f'#SBATCH --ntasks={args.ntasks}\n'
     sb += f'#SBATCH --job-name={args.job_name}\n'
-    sb += f'#SBATCH --output=j-%j.out\n'
-    sb += f'#SBATCH --error=j-%j.err\n'
+    sb += f'#SBATCH --output=%x-%j.out\n'
+    sb += f'#SBATCH --error=%x-%j.err\n'
+    sb += f'#SBATCH --mem-per-cpu=2000\n'
     if not args.nodelist is None:
         sb += f'#SBATCH --nodelist={args.nodelist}\n'
     sb += '\n'
+    sb += f'module load python\n'
     sb += f'./run_partrace.py -n {args.ntasks} {args.infile}'
     with open(f'sbatch_partrace.sbatch','w+') as f:
         f.write(sb)

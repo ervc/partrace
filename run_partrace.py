@@ -3,7 +3,7 @@
 # standard imports
 import numpy as np
 from numpy.random import default_rng
-from multiprocessing.pool import ThreadPool
+from multiprocessing import Pool
 import os
 import subprocess
 from time import time
@@ -95,7 +95,7 @@ def main(infile,nproc):
 
     if nproc > 1:
         print('Creating multiprocessing pool...', flush=True)
-        with ThreadPool(processes=nproc) as pool:
+        with Pool(processes=nproc) as pool:
             N = np.arange(npart)
             allargs = [(locs,pargs,intargs,n) for n in N]
             allsols = pool.map(helper_func,allargs)
