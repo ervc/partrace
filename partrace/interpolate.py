@@ -39,8 +39,6 @@ def interp1d(arr,coords,x,axis=0,linear=False,extend=False):
                 return arr[0]
             elif x > coords[-1]:
                 return arr[-1]
-            else:
-                return np.nan
     elif coords[0] > coords[-1]:
         # decreasing coordinates
         if not extend:
@@ -51,8 +49,6 @@ def interp1d(arr,coords,x,axis=0,linear=False,extend=False):
                 return arr[0]
             elif x < coords[-1]:
                 return arr[-1]
-            else:
-                return np.nan
     
     nx = len(coords)
     if linear:
