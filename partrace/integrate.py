@@ -310,11 +310,9 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
         if (partr < part.mesh.ycenters.min() 
                 or partr > part.mesh.ycenters.max()):
             status = 'OoB'
-        if (parttheta < part.mesh.zcenters.min()
-                or parttheta > part.mesh.zcenters.max()):
-            print(f'{parttheta = }')
-            print(f'{part.mesh.zcenters.min() = }')
-            print(f'{part.mesh.zcenters.max() = }')
+        if (parttheta < part.subzcenters.min()
+                or parttheta > part.subzcenters.max()):
+            # use subzcenters because this is symmetric across the midplane
             status = 'OoB'
         if planr < planet.envelope:
             status = 'accreted'
