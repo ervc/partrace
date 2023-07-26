@@ -155,7 +155,7 @@ def helper_func(args):
         savefile = f'{outputdir}/history_{n+saveplus}.npz'
     status,end,time = integrate(p,planet,tf,savefile=savefile,
         tstop_scale=tstop_scale,diffusion=diffusion)
-    print('    finished particle ',n,flush=True)
+    print(f'    finished particle {n}. status = {status}',flush=True)
     del(p)
     return status,end,time
 
