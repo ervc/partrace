@@ -14,7 +14,7 @@ import partrace.constants as const
 from partrace.integrate import integrate
 import partrace.partraceio as ptio
 
-def main(infile,nproc):
+def main(infile,nproc,saveplus):
 
     # get parameters from input file
     params = ptio.read_input(args.infile)
@@ -91,7 +91,7 @@ def main(infile,nproc):
     locs = LOCS
     pargs = (mesh,a,rho_s)
     kw = {'max_step':maxdt}
-    intargs = (tf,OUTPUTDIR,tstop_scale,DIFFUSION)
+    intargs = (tf,OUTPUTDIR,tstop_scale,DIFFUSION,saveplus)
 
     if nproc > 1:
         print('Creating multiprocessing pool...', flush=True)
@@ -117,7 +117,7 @@ def main(infile,nproc):
         ends[i] = hist[:3]
         starts[i] = locs[i]
         times[i] = time
-    np.savez(f'{OUTPUTDIR}/allparts.npz',starts=starts,ends=ends,
+    np.savez(f'{OUTPUTDIR}/allparts_S{saveplus}.npz',starts=starts,ends=ends,
             status=statii,times=times)
     print('all done:')
     print('statuses: ',statii)
@@ -149,10 +149,10 @@ def helper_func(args):
     planet = pt.create_planet(mesh,0,'Jupiter')
     p = pt.create_particle(mesh,x0,y0,z0,a,rho_s)
     print('starting particle ',n,flush=True)    
-    tf,outputdir,tstop_scale,diffusion = intargs
+    tf,outputdir,tstop_scale,diffusion,saveplus = intargs
     savefile = None
     if n%10 == 0:
-        savefile = f'{outputdir}/history_{n}.npz'
+        savefile = f'{outputdir}/history_{n+saveplus}.npz'
     status,end,time = integrate(p,planet,tf,savefile=savefile,
         tstop_scale=tstop_scale,diffusion=diffusion)
     print('    finished particle ',n,flush=True)
@@ -174,9 +174,10 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('infile')
     parser.add_argument('-n','--nproc',type=int,default=1)
+    parser.add_argument('-S','--saveplus',type=int,default=0)
     args = parser.parse_args()
 
-    main(args.infile,args.nproc)
+    main(args.infile,args.nproc,args.saveplus)
     end = time()
     t = end-start
     if not os.path.exists('time_to_run.out'):
