@@ -1,6 +1,6 @@
 import numpy as np
 
-def interp1d(arr,coords,x,axis=0,linear=False):
+def interp1d(arr,coords,x,axis=0,linear=False,extend=False):
     """Linearly interpolate an axis in 1D along one of the axes.
     Parameters
     ----------
@@ -29,12 +29,30 @@ def interp1d(arr,coords,x,axis=0,linear=False):
     
     if coords[0] < coords[-1]:
         # increaseing coordinates
-        if x < coords[0] or x > coords[-1]:
-            return np.nan
+        if not extend:
+            # return np.nan if outside of coordinates
+            if x < coords[0] or x > coords[-1]:
+                return np.nan
+        else:
+            # assume constant outside of bounds
+            if x < coords[0]:
+                return arr[0]
+            elif x > coords[-1]:
+                return arr[-1]
+            else:
+                return np.nan
     elif coords[0] > coords[-1]:
         # decreasing coordinates
-        if x > coords[0] or x < coords[-1]:
-            return np.nan
+        if not extend:
+            if x > coords[0] or x < coords[-1]:
+                return np.nan
+        else:
+            if x > coords[0]:
+                return arr[0]
+            elif x < coords[-1]:
+                return arr[-1]
+            else:
+                return np.nan
     
     nx = len(coords)
     if linear:
@@ -91,14 +109,14 @@ def interp3d(arr,coords,pos):
     PHI,R,THETA = coords
     # interpolate in theta, then r, then phi
     # check for nans between interpolations
-    arr2 = interp1d(arr,THETA,theta)
+    arr2 = interp1d(arr,THETA,theta,extend=True)
     if np.isnan(np.sum(arr2)):
         print('\n')
         print(f'{theta = :e}')
         print(THETA)
         raise ValueError("interpolation in theta is out of bounds")
 
-    arr1 = interp1d(arr2,R,r)
+    arr1 = interp1d(arr2,R,r,extend=True)
     if np.isnan(np.sum(arr1)):
         print('\n')
         print(f'{r:e}')
@@ -110,7 +128,7 @@ def interp3d(arr,coords,pos):
         phi = phi + 2*np.pi
     elif phi > np.max(PHI):
         phi = phi - 2*np.pi
-    arr0 =  interp1d(arr1,PHI,phi)
+    arr0 =  interp1d(arr1,PHI,phi,extend=True)
     if np.isnan(np.sum(arr0)):
         print(phi)
         print(PHI)
