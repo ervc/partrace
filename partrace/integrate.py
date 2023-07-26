@@ -273,7 +273,7 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
         np.savez(savefile,history=traj,times=times,Stokes=Stokes)
         print('\nSaved output to: ',savefile)
     
-    maxN = int(1e6)
+    maxN = int(1e9)
     time = 0
     status = 'running'
     i=0
@@ -305,8 +305,13 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
         
         partr = np.linalg.norm(part.pos)
         planr = np.linalg.norm(part.pos-planet.pos)
+        partz = part.pos[-1]
+        parttheta = np.arccos(partz/partr)
         if (partr < part.mesh.ycenters.min() 
                 or partr > part.mesh.ycenters.max()):
+            status = 'OoB'
+        if (parttheta < part.mesh.zcenters.min()
+                or parttheta > part.mesh.zcenters.max()):
             status = 'OoB'
         if planr < planet.envelope:
             status = 'accreted'
