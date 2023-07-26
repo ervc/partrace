@@ -74,11 +74,11 @@ class Planet():
         """reads in data from planet file and stores as class values"""
         with open(self.mesh.fargodir+'/'+self.fname,'r') as f:
             for line in f:
-                nout = int(line.split()[0])
-                if nout!=self.nout:
+                nout = line.split()[0]
+                if nout!=str(self.nout):
                     continue
-                nout,x,y,z,vx,vy,vz,mass,time,omegaframe = map(float,
-                                                               line.split())
+                x,y,z,vx,vy,vz,mass,time,omegaframe = map(float,
+                                                          line.split()[1:])
                 self.pos = np.array([x,y,z])
                 self.vel = np.array([vx,vy,vz])
                 self.mass = mass
@@ -89,8 +89,8 @@ class Planet():
             with open(self.mesh.fargodir+'/'+self.fname,'r') as f:
                 lines = f.readlines()
                 line0 = lines[-1]
-                nout,x,y,z,vx,vy,vz,mass,time,omegaframe = map(float,
-                                                               line.split())
+                x,y,z,vx,vy,vz,mass,time,omegaframe = map(float,
+                                                          line.split()[1:])
 
                 self.pos = np.array([x,y,z])
                 self.vel = np.array([vx,vy,vz])
