@@ -312,6 +312,9 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
             status = 'OoB'
         if (parttheta < part.mesh.zcenters.min()
                 or parttheta > part.mesh.zcenters.max()):
+            print(f'{parttheta = }')
+            print(f'{part.mesh.zcenters.min() = }')
+            print(f'{part.mesh.zcenters.max() = }')
             status = 'OoB'
         if planr < planet.envelope:
             status = 'accreted'
