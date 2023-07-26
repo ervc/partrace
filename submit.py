@@ -9,7 +9,11 @@ def main(args):
         sb += f'#SBATCH --time={parse_time(args.time)}\n'
     else:
         print('no wall time given')
+    sb += f'#SBATCH --nodes=1\n'
     sb += f'#SBATCH --ntasks={args.ntasks}\n'
+    jobname = args.job_name
+    if jobname == '':
+        jobname = parse_jobname(args.infile)+'_S{args.saveplus}'
     sb += f'#SBATCH --job-name={args.job_name}\n'
     sb += f'#SBATCH --output=%x-%j.out\n'
     sb += f'#SBATCH --error=%x-%j.err\n'
@@ -18,11 +22,25 @@ def main(args):
         sb += f'#SBATCH --nodelist={args.nodelist}\n'
     sb += '\n'
     sb += f'module load python\n'
-    sb += f'./run_partrace.py -n {args.ntasks} {args.infile}'
+    sb += f'source activate partrace\n'
+    sb += f'./run_partrace.py -n {args.ntasks} -S {args.saveplus} {args.infile}'
     with open(f'sbatch_partrace.sbatch','w+') as f:
         f.write(sb)
 
     subprocess.run(['sbatch','sbatch_partrace.sbatch'])
+
+def parse_jobname(infile):
+    ### particleout/alpha3_mplan300_random_a0.1_n50.ini
+    fname = infile.split('/')[-1] # just filename
+    fname = fname[:-4] # cut off .ini at end
+    alpha,mass,distro,grainsize,nout = fname.split('_')
+    a = alpha[5:]
+    mp = mass[5:]
+    d = distro
+    gs = grainsize[1:]
+    n = nout[1:]
+    jobname = f'a{a}mp{mp}gs{gs}n{n}'
+    return jobname
 
 def parse_time(time):
     days = int(time//24)
@@ -38,7 +56,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='submit job to slurm scheduler')
     parser.add_argument('-n','--ntasks',type=int,default=1)
     parser.add_argument('-t','--time',type=float,default=None,help='walltime in hours')
-    parser.add_argument('-j','--job-name',type=str,default='partrace')
+    parser.add_argument('-j','--job-name',type=str,default='')
+    parser.add_argument('-S','--saveplus',type=int,default=0)
     parser.add_argument('--nodelist',type=str,default=None)
     parser.add_argument('infile',type=str)
     args = parser.parse_args()
