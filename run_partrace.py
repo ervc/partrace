@@ -167,7 +167,7 @@ def count_success(allsols):
     return ns
 
 if __name__ == '__main__':
-    start = time()
+    #start = time()
 
     # read in arguments
     import argparse
@@ -178,11 +178,11 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     main(args.infile,args.nproc,args.saveplus)
-    end = time()
-    t = end-start
-    if not os.path.exists('time_to_run.out'):
-        with open('time_to_run.out','w+') as f:
-            f.write('time [hrs], partsize [cm], tf [yr], solver, maxstep [s], fargodir, outputdir, diffusion\n')
-    with open('time_to_run.out','a+') as f:
-        f.write(f'{t/3600:.3f}, {A}, {TF/const.YR:.1e}, {SOLVER}, {MAXSTEP}, {FARGODIR}, {OUTPUTDIR}, {DIFFUSION}\n')
+    #end = time()
+    #t = end-start
+    #if not os.path.exists('time_to_run.out'):
+    #    with open('time_to_run.out','w+') as f:
+    #        f.write('time [hrs], partsize [cm], tf [yr], solver, maxstep [s], fargodir, outputdir, diffusion\n')
+    #with open('time_to_run.out','a+') as f:
+    #    f.write(f'{t/3600:.3f}, {A}, {TF/const.YR:.1e}, {SOLVER}, {MAXSTEP}, {FARGODIR}, {OUTPUTDIR}, {DIFFUSION}\n')
 
