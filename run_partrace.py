@@ -156,10 +156,10 @@ def helper_func(args):
     status,end,time = integrate(p,planet,tf,savefile=savefile,
         tstop_scale=tstop_scale,diffusion=diffusion)
     print(f'    finished particle {n}. status = {status}',flush=True)
-    if not os.path.exists(outdir+f'/tmp_allparts_s{saveplus}.txt'):
-        with open(outdir+f'/tmp_allparts_s{saveplus}.txt','w+') as f:
+    if not os.path.exists(outputdir+f'/tmp_allparts_s{saveplus}.txt'):
+        with open(outputdir+f'/tmp_allparts_s{saveplus}.txt','w+') as f:
             f.write('n,\txi,\tyi,\tzi,\txf,\tyf,\tzf,\tstatus,\ttime\n')
-    with open(outdir+f'/tmp_allparts_s{saveplus}.txt','a') as f:
+    with open(outputdir+f'/tmp_allparts_s{saveplus}.txt','a') as f:
         f.write(f'{n},\t{x0},\t{y0},\t{z0},\t{end[0]},\t{end[1]},\t{end[2]},\t{status},\t{time}')
     del(p)
     return status,end,time
