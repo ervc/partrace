@@ -160,7 +160,7 @@ def helper_func(args):
         with open(outputdir+f'/tmp_allparts_s{saveplus}.txt','w+') as f:
             f.write('n,\txi,\tyi,\tzi,\txf,\tyf,\tzf,\tstatus,\ttime\n')
     with open(outputdir+f'/tmp_allparts_s{saveplus}.txt','a') as f:
-        f.write(f'{n},\t{x0},\t{y0},\t{z0},\t{end[0]},\t{end[1]},\t{end[2]},\t{status},\t{time}')
+        f.write(f'{n},\t{x0},\t{y0},\t{z0},\t{end[0]},\t{end[1]},\t{end[2]},\t{status},\t{time}\n')
     del(p)
     return status,end,time
 
