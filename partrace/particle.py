@@ -55,8 +55,9 @@ class Particle(object):
         r = np.sqrt(x*x + y*y)
 
         self.subgrid = {}
-        self.init_subgrid()
-        self.update_subgrid()
+        # self.init_subgrid()
+        # self.update_subgrid()
+        self.init_fullgrid()
 
         self.vel = self.get_vel0()
         self.vel0 = np.array(self.vel)
@@ -78,6 +79,26 @@ class Particle(object):
 
         for state in ['gasdens','gasvx','gasvy','gasvz','partdiff']:
             self.subgrid[state] = np.zeros(self.subgridshape)
+
+    def init_fullgrid(self):
+        self.iwidth = self.mesh.nx+2 
+        self.jwidth = self.mesh.ny
+        self.kwidth = self.mesh.nz*2
+
+        self.subgridshape = (self.kwidth,self.jwidth,self.iwidth)
+        self.subgridsize = self.kwidth*self.jwidth*self.iwidth
+
+        self.subxcenters = np.zeros(self.iwidth)
+        self.subycenters = np.zeros(self.jwidth)
+        self.subzcenters = np.zeros(self.kwidth)
+
+        for state in ['gasdens','gasvx','gasvy','gasvz']:
+            self.subgrid[state] = np.zeros(self.subgridshape)
+            self.subgrid[state][:nz] = self.mesh.read_state(state)
+            if state == 'gasvz':
+                self.subgrid[state][nz:] = -self.subgrid[state][nz-1::-1]
+            else:
+                self.subgrid[state][nz:] = self.subgrid[state][nz-1::-1]
 
     def get_vel0(self):
         x,y,z = self.pos0
@@ -112,10 +133,10 @@ class Particle(object):
         """update the position of the particle, and 
         update subgrid if necessary"""
         self.pos = np.array([x,y,z])
-        self.subi,self.subj,self.subk = self.get_subgrid_index(x,y,z)
-        if ( #self.subi > 31/32*self.iwidth or self.subi < 1/32*self.iwidth or
-                self.subj > 3/4*self.jwidth or self.subj < 1/4*self.jwidth):
-            self.update_subgrid()
+        # self.subi,self.subj,self.subk = self.get_subgrid_index(x,y,z)
+        # if ( #self.subi > 31/32*self.iwidth or self.subi < 1/32*self.iwidth or
+                # self.subj > 3/4*self.jwidth or self.subj < 1/4*self.jwidth):
+            # self.update_subgrid()
 
 
     def update_velocity(self,vx,vy,vz):
