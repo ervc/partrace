@@ -92,15 +92,40 @@ class Particle(object):
         self.subycenters = np.zeros(self.jwidth)
         self.subzcenters = np.zeros(self.kwidth)
 
+        # xcenters plus the edges
+        self.subxcenters = np.zeros(self.iwidth)
+        self.subxcenters[1:-1] = self.mesh.xcenters
+        self.subxcenters[0] = self.mesh.xcenters[-1]-2*np.pi
+        self.subxcenters[-1] = self.mesh.xcenters[0]+2*np.pi
+
+        # ycenters are the same
+        self.subycenters = self.mesh.ycenters
+
+        # zcenters are copied and flipped
         nz = self.mesh.nz
+        self.subzcenters[:nz] = self.mesh.zcenters
+        self.subzcenters[nz:] = np.pi-self.mesh.zcenters[::-1]
 
         for state in ['gasdens','gasvx','gasvy','gasvz']:
             self.subgrid[state] = np.zeros(self.subgridshape)
-            self.subgrid[state][:nz] = self.mesh.read_state(state)
+            fullmesh = self.mesh.read_state(state)
+            # top half of the subgrid (which is now more like a super grid)
+            self.subgrid[state][:nz,:,1:-1] = fullmesh
+            # repeat the azimuthal edges
+            self.subgrid[state][:nz,:,0] = fullmesh[:,:,-1]
+            self.subgrid[state][:nz,:,-1] = fullmesh[:,:,0]
             if state == 'gasvz':
                 self.subgrid[state][nz:] = -self.subgrid[state][nz-1::-1]
             else:
                 self.subgrid[state][nz:] = self.subgrid[state][nz-1::-1]
+
+        # get the gradient grids
+        self.subgrid['gradrho'] = self.get_gradrho_grid()
+        self.subgrid['gradpartdiff'] = self.get_gradpartdiff_grid()
+        self.subgrid['gasvel'] = self.get_gasvel_grid()
+
+        # get subgrid indices
+        self.subi, self.subj, self.subk = self.get_subgrid_index(*self.pos)
 
     def get_vel0(self):
         x,y,z = self.pos0
