@@ -55,9 +55,8 @@ class Particle(object):
         r = np.sqrt(x*x + y*y)
 
         self.subgrid = {}
-        # self.init_subgrid()
-        # self.update_subgrid()
-        self.init_fullgrid()
+        self.init_subgrid()
+        self.update_subgrid()
 
         self.vel = self.get_vel0()
         self.vel0 = np.array(self.vel)
@@ -81,6 +80,9 @@ class Particle(object):
             self.subgrid[state] = np.zeros(self.subgridshape)
 
     def init_fullgrid(self):
+        """This takes a huge amount of memory, do not use unless you 
+        have a ton of RAM.
+        """
         self.iwidth = self.mesh.nx+2 
         self.jwidth = self.mesh.ny
         self.kwidth = self.mesh.nz*2
@@ -160,10 +162,10 @@ class Particle(object):
         """update the position of the particle, and 
         update subgrid if necessary"""
         self.pos = np.array([x,y,z])
-        # self.subi,self.subj,self.subk = self.get_subgrid_index(x,y,z)
-        # if ( #self.subi > 31/32*self.iwidth or self.subi < 1/32*self.iwidth or
-                # self.subj > 3/4*self.jwidth or self.subj < 1/4*self.jwidth):
-            # self.update_subgrid()
+        self.subi,self.subj,self.subk = self.get_subgrid_index(x,y,z)
+        if ( #self.subi > 31/32*self.iwidth or self.subi < 1/32*self.iwidth or
+                self.subj > 3/4*self.jwidth or self.subj < 1/4*self.jwidth):
+            self.update_subgrid()
 
 
     def update_velocity(self,vx,vy,vz):

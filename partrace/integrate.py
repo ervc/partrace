@@ -307,8 +307,8 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
         planr = np.linalg.norm(part.pos-planet.pos)
         partz = part.pos[-1]
         parttheta = np.arccos(partz/partr)
-        if (partr < part.mesh.ycenters.min() 
-                or partr > part.mesh.ycenters.max()):
+        if (partr < part.mesh.yedges[1]
+                or partr > part.mesh.yedges[-2]):
             status = 'OoB'
         if (parttheta < part.subzcenters.min()
                 or parttheta > part.subzcenters.max()):
