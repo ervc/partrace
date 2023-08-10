@@ -92,7 +92,7 @@ class Particle(object):
         self.subycenters = np.zeros(self.jwidth)
         self.subzcenters = np.zeros(self.kwidth)
 
-        nz = mesh.nz
+        nz = self.mesh.nz
 
         for state in ['gasdens','gasvx','gasvy','gasvz']:
             self.subgrid[state] = np.zeros(self.subgridshape)
