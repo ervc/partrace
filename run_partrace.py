@@ -120,6 +120,10 @@ def main(infile,nproc,saveplus):
         times[i] = time
     np.savez(f'{OUTPUTDIR}/allparts_S{saveplus}.npz',starts=starts,ends=ends,
             status=statii,times=times)
+    print(f'allparts saved to {OUTPUTDIR}/allparts_S{saveplus}.npz')
+    deltmp = f'rm -rf {OUTPUTDIR}/tmp_allparts_s{saveplus}'
+    subprocess.run(list(deltmp.split(' ')))
+    print(deltmp)
     print('all done:')
     print('statuses: ',statii)
     print(f'successes : {count_success(statii)}/'
