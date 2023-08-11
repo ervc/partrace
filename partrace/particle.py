@@ -163,9 +163,19 @@ class Particle(object):
         update subgrid if necessary"""
         self.pos = np.array([x,y,z])
         self.subi,self.subj,self.subk = self.get_subgrid_index(x,y,z)
-        if ( #self.subi > 31/32*self.iwidth or self.subi < 1/32*self.iwidth or
-                self.subj > 3/4*self.jwidth or self.subj < 1/4*self.jwidth):
-            self.update_subgrid()
+        # if not already at the edge then check if we need to regrid
+        i,j,k = self.mesh.get_cell_index(x,y,z)
+        jhw = int((self.jwidth-1)/2)
+        jlo,jhi = j-jhw, j+jhw+1
+        if jlo == 0 or jhi == self.mesh.ny:
+            return None
+        elif (self.subj > 3/4*self.jwidth or self.subj < 1/4*self.jwidth):
+            i,j,k = self.mesh.get_cell_index(x,y,z)
+            jhw = int((self.jwidth-1)/2)
+            jlo,jhi = j-jhw, j+jhw+1
+            if jlo == 0 or jhi == self.mesh.ny:
+                return None
+            return self.update_subgrid()
 
 
     def update_velocity(self,vx,vy,vz):
@@ -222,6 +232,14 @@ class Particle(object):
         # ilo,ihi = i-ihw, i+ihw+1
         jlo,jhi = j-jhw, j+jhw+1
 
+        # if gradrho is already defined then this is not the first time
+        # update_subgrid is being called.
+        # if jlo is exactly 0 or jhi is exactly ny, then no need to
+        # regrid, as it has probably already been regridded here.
+        if 'gradrho' in self.subgrid:
+            if jlo == 0 or jhi == self.mesh.ny:
+                return None
+
         # # get x centers first
         # # check bounds
         # if ilo < 0:
@@ -248,17 +266,30 @@ class Particle(object):
         # boundaries periodic
         islice = np.array([-1] + list(range(self.mesh.nx)) + [0])
 
-        # get y centers next
+        # # get y centers next
+        # if jlo < 0:
+        #     # just pad the lower edge of the grid with zeros
+        #     # particle should be caught before it reaches this point
+        #     # in the integration step
+        #     l = [0]*-jlo + list(range(0,jhi))
+        #     jslice = np.array(l)
+        # elif jhi > self.mesh.ny:
+        #     l = list(range(jlo,self.mesh.ny)) + [self.mesh.ny-1]*(jhi-self.mesh.ny)
+        #     jslice = np.array(l)
+        # else:
+        #     jslice = np.arange(jlo,jhi)
+        # self.subycenters = self.mesh.ycenters[jslice]
+        # new get y centers
+        ny = self.mesh.ny
         if jlo < 0:
-            # just pad the lower edge of the grid with zeros
-            # particle should be caught before it reaches this point
-            # in the integration step
-            l = [0]*-jlo + list(range(0,jhi))
-            jslice = np.array(l)
-        elif jhi > self.mesh.ny:
-            l = list(range(jlo,self.mesh.ny)) + [self.mesh.ny-1]*(jhi-self.mesh.ny)
-            jslice = np.array(l)
+            # if lower edge of mesh would be inside of inner edge
+            # then just set it to be at the inner edge instead
+            jslice = np.arange(0,self.jwidth)
+        elif jhi > ny:
+            # at the upper edge, set upper limit to be at mesh.ny
+            jslice = np.arange(ny-self.jwidth,ny)
         else:
+            # otherwise just a normal slice centered on the particle
             jslice = np.arange(jlo,jhi)
         self.subycenters = self.mesh.ycenters[jslice]
 
