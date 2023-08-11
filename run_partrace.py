@@ -54,6 +54,7 @@ def main(infile,nproc,saveplus):
     print('partfile: ',params["partfile"])
     print('output dirrectory: ',params["outputdir"])
     print('number of particles: ',NPART)
+    print(f'saving particles with saveplus = {saveplus}')
     print(f'tf = {TF} sec = {TF/const.YR} yr')
     # check number of processors
     print('cpus availables = ',nproc,flush=True)
