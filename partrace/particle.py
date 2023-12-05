@@ -163,19 +163,15 @@ class Particle(object):
         update subgrid if necessary"""
         self.pos = np.array([x,y,z])
         self.subi,self.subj,self.subk = self.get_subgrid_index(x,y,z)
-        # if not already at the edge then check if we need to regrid
-        i,j,k = self.mesh.get_cell_index(x,y,z)
-        jhw = int((self.jwidth-1)/2)
-        jlo,jhi = j-jhw, j+jhw+1
-        if jlo == 0 or jhi == self.mesh.ny:
-            return None
-        elif (self.subj > 3/4*self.jwidth or self.subj < 1/4*self.jwidth):
+        if (self.subj > 3/4*self.jwidth or self.subj < 1/4*self.jwidth):
+            # if not already at the edge then check if we need to regrid
             i,j,k = self.mesh.get_cell_index(x,y,z)
             jhw = int((self.jwidth-1)/2)
             jlo,jhi = j-jhw, j+jhw+1
             if jlo == 0 or jhi == self.mesh.ny:
                 return None
-            return self.update_subgrid()
+            else:
+                return self.update_subgrid()
 
 
     def update_velocity(self,vx,vy,vz):

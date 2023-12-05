@@ -241,6 +241,15 @@ def rkstep_particle(part,planet,t,maxdt=np.inf,tstop_scale=1,diffusion=True):
     part.update_velocity(*Vi)
     return t+dt
 
+
+def record_crossing(time,pos,savefile):
+    with open(savefile,'a+') as f:
+        f.write(f'{time}, {pos}\n')
+
+def record_nocross(savefile):
+    with open(savefile,'a+') as f:
+        f.write('None\n')
+
 def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
     """
     Integrate the particle from time 0 to time tf and save output as npz
@@ -307,6 +316,9 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
         planr = np.linalg.norm(part.pos-planet.pos)
         partz = part.pos[-1]
         parttheta = np.arccos(partz/partr)
+        crossr = 5.2*const.AU
+        if partr < crossr:
+            status = 'Crossed'
         if (partr < part.mesh.yedges[1]
                 or partr > part.mesh.yedges[-2]):
             status = 'OoB'
@@ -322,8 +334,13 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
             status = 'finished'
     
         i+=1
+
+    if status=='Crossed':
+        record_crossing(times[-1],traj[-1],savefile)
+    else:
+        record_nocross(savefile)
     
-    if savefile:
-        save_output()
+    #if savefile:
+    #    save_output()
     
     return status, traj[-1], times[-1]
