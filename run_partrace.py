@@ -121,7 +121,7 @@ def main(infile,nproc,saveplus):
     np.savez(f'{OUTPUTDIR}/allparts_S{saveplus}.npz',starts=starts,ends=ends,
             status=statii,times=times)
     print(f'allparts saved to {OUTPUTDIR}/allparts_S{saveplus}.npz')
-    deltmp = f'rm -rf {OUTPUTDIR}/tmp_allparts_s{saveplus}'
+    deltmp = f'rm -rf {OUTPUTDIR}/tmp_allparts_s{saveplus}.txt'
     subprocess.run(list(deltmp.split(' ')))
     print(deltmp)
     print('all done:')
