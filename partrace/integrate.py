@@ -282,6 +282,9 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
         np.savez(savefile,history=traj,times=times,Stokes=Stokes)
         print('\nSaved output to: ',savefile)
     
+    savedir = '/'.join(savefile.split('/')[:-1])
+    crossfile = savedir+'/part_crossing.txt'
+    
     maxN = int(1e9)
     time = 0
     status = 'running'
@@ -290,11 +293,15 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
     nout = 100
     touts = np.linspace(0,tf,nout)
     iout = 0
+    nlog = int(tf/const.YR) # log particle position every year
+    logs = np.arange(0,tf/const.YR+1) # list of output times (+1 to include tf)
+    ilog = 0
     while status=='running':
         if time > touts[iout]:
+            # print statement to check if we are still running
             print(f'{time:.4e}/{tf:.2e} \t {i}/{maxN} \t {dt/const.YR = :.3e}',flush=True)
             iout += 1
-        maxdt = min(tf-time,0.1*const.YR)
+        maxdt = min(tf-time,logs[ilog+1]-time,0.1*const.YR)
         try:
             time = rkstep_particle(
                 part,planet,time,maxdt=maxdt,
@@ -307,10 +314,13 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
             print(e)
 #             raise ValueError
             return status
-        traj.append([*part.pos,*part.vel])
-        times.append(time)
-        Stokes.append(part.get_stokes())
-        dt = time-times[-2]
+        if time/const.YR >= logs[ilog+1]:
+            # log the particle info for output
+            traj.append([*part.pos,*part.vel])
+            times.append(time)
+            Stokes.append(part.get_stokes())
+            ilog += 1
+        # dt = time-times[-2]
         
         partr = np.linalg.norm(part.pos)
         planr = np.linalg.norm(part.pos-planet.pos)
@@ -335,12 +345,18 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
     
         i+=1
 
+    # record the last time if part way between logs
+    if (time/const.YR > logs[ilog]) and (time/const.YR < logs[ilog+1]): 
+        traj.append([*part.pos,*part.vel])
+        times.append(time)
+        Stokes.append(part.get_stokes())
+
     if status=='Crossed':
-        record_crossing(times[-1],traj[-1],savefile)
+        record_crossing(times[-1],traj[-1],crossfile)
     else:
-        record_nocross(savefile)
+        record_nocross(crossfile)
     
-    #if savefile:
-    #    save_output()
+    if savefile:
+        save_output()
     
     return status, traj[-1], times[-1]
