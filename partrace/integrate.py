@@ -299,9 +299,9 @@ def integrate(part,planet,tf,savefile,tstop_scale=1,diffusion=True):
     while status=='running':
         if time > touts[iout]:
             # print statement to check if we are still running
-            print(f'{time:.4e}/{tf:.2e} \t {i}/{maxN} \t {dt/const.YR = :.3e}',flush=True)
+            print(f'{time:.4e}/{tf:.2e} \t {i}/{maxN}',flush=True)
             iout += 1
-        maxdt = min(tf-time,logs[ilog+1]-time,0.1*const.YR)
+        maxdt = min(tf-time,logs[ilog+1]*const.YR-time,0.1*const.YR)
         try:
             time = rkstep_particle(
                 part,planet,time,maxdt=maxdt,
