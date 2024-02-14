@@ -1,5 +1,5 @@
 __author__ = 'Eric Van Clepper'
-__version__ = '1.0.0_subgrid'
+__version__ = '1.0.0'
 
 # import numpy as np
 # import matplotlib.pyplot as plt

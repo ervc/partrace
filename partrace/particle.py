@@ -83,6 +83,7 @@ class Particle(object):
         """This takes a huge amount of memory, do not use unless you 
         have a ton of RAM.
         """
+        print('Initializing full grid...')
         self.iwidth = self.mesh.nx+2 
         self.jwidth = self.mesh.ny
         self.kwidth = self.mesh.nz*2
@@ -108,7 +109,9 @@ class Particle(object):
         self.subzcenters[:nz] = self.mesh.zcenters
         self.subzcenters[nz:] = np.pi-self.mesh.zcenters[::-1]
 
+        print('Getting states...')
         for state in ['gasdens','gasvx','gasvy','gasvz']:
+            print(state)
             self.subgrid[state] = np.zeros(self.subgridshape)
             fullmesh = self.mesh.read_state(state)
             # top half of the subgrid (which is now more like a super grid)
@@ -122,12 +125,18 @@ class Particle(object):
                 self.subgrid[state][nz:] = self.subgrid[state][nz-1::-1]
 
         # get the gradient grids
+        print('making gradients...')
+        print('gradrho')
         self.subgrid['gradrho'] = self.get_gradrho_grid()
+        print('gradpartdiff')
         self.subgrid['gradpartdiff'] = self.get_gradpartdiff_grid()
-        self.subgrid['gasvel'] = self.get_gasvel_grid()
+        #print('gasvel')
+        #self.subgrid['gasvel'] = self.get_gasvel_grid()
 
         # get subgrid indices
         self.subi, self.subj, self.subk = self.get_subgrid_index(*self.pos)
+
+        print('Done!')
 
     def get_vel0(self):
         x,y,z = self.pos0
