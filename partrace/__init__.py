@@ -21,6 +21,96 @@ from . import integrate
 from . import planet
 from . import partraceio
 
+class Model():
+    def __init__(self,alpha,mplan):
+        self.alpha = alpha
+        self.mplan = mplan
+        self.mesh = self.create_mesh()
+        
+
+    def get_fargodir(self):
+        return f'../fargo/outputs/alpha{self.alpha}_mplan{self.mplan}'
+
+    def create_mesh(self,nout=None,quiet=True):
+        if nout is None:
+            nout = 'avg' if self.mplan in [200,300] else 50
+        mesh = create_mesh(self.get_fargodir(),n=nout,quiet=quiet)
+        return mesh
+
+    def get_spheregrid(self):
+        P = self.mesh.xcenters
+        R = self.mesh.ycenters
+        T = self.mesh.zcenters
+        tt,rr,pp = np.meshgrid(T,R,P,indexing='ij')
+        return tt,rr,pp
+    
+    def get_cartgrid(self):
+        tt,rr,pp = self.get_spheregrid()
+        xx,yy,zz = self.mesh._sphere2cart(pp,rr,tt)
+        return xx,yy,zz
+
+    def get_cylgrid(self):
+        tt,rr,pp = self.get_spheregrid()
+        xx,yy,zz = self.get_cartgrid()
+        rr = np.sqrt(xx*xx + yy*yy)
+        return pp,rr,zz
+
+    def get_rhogrid(self):
+        return self.mesh.read_state('gasdens')
+
+    def get_spherevelgrid(self):
+        vphi = self.mesh.read_state('gasvx')
+        vr = self.mesh.read_state('gasvy')
+        vtheta = self.mesh.read_state('gasvz')
+        return vphi,vr,vtheta
+
+    def get_cartvelgrid(self):
+        tt,rr,pp = self.get_spheregrid()
+        vphi,vr,vtheta = self.get_spherevelgrid()
+        vx,vy,vz = self.mesh._vel_sphere2cart(pp,rr,tt,vphi,vr,vtheta)
+        return vx,vy,vz
+
+    def get_cylvelgrid(self):
+        tt,rr,pp = self.get_spheregrid()
+        vphi,vr,vtheta = self.get_spherevelgrid()
+        zz = rr*np.cos(tt)
+        vz = vr*np.cos(tt) - vtheta*np.sin(tt)
+        rr = rr*np.sin(tt)
+        vr = vr*np.sin(tt) + vtheta*np.cos(tt)
+        return vphi,vr,vz
+
+    def get_Omegagrid(self):
+        G = float(self.mesh.variables['G'])
+        MSTAR = float(self.mesh.variables['MSTAR'])
+        GM = G*MSTAR
+        tt,rr,pp = self.get_spheregrid()
+        return np.sqrt(GM/rr/rr/rr)
+
+    def get_surfacedensity(self):
+        rho = self.mesh.read_state('gasdens')
+        rhomid = rho[-1]
+        R   = self.mesh.ycenters
+        PHI = self.mesh.xcenters
+        pp,rr = np.meshgrid(PHI,R)
+        aspect = float(self.mesh.variables['ASPECTRATIO'])
+        flaring = float(self.mesh.variables['FLARINGINDEX'])
+        R0 = float(self.mesh.variables['R0'])
+        H = rr*aspect*(rr/R0)**flaring
+        return rhomid*np.sqrt(2*np.pi)*H
+
+    def get_real_surfacedensity(self):
+        rho = self.mesh.read_state('gasdens')
+        THETA = self.mesh.zcenters
+        R = self.mesh.ycenters
+        PHI = self.mesh.xcenters
+        THETAEDGE = self.mesh.zedges
+        tte,rr,pp = np.meshgrid(THETAEDGE,R,PHI,indexing='ij')
+        zze = rr*np.cos(tte)
+        dz = zze[:-1]-zze[1:] # take differences of z edges
+        Sigma = 2*np.sum(rho*dz,axis=0) # sum along the first (theta) axis. Theta approx z near midplane
+                                        # multiply by 2 because this is a half disk
+        return Sigma
+
 def create_grid(fargodir,nx,ny,nz=1,domain=None,
                  nout=-1,quiet=False):
     """
