@@ -111,6 +111,66 @@ class Model():
                                         # multiply by 2 because this is a half disk
         return Sigma
 
+    def find_gapedge(self,*args,**kwargs):
+        """
+        Find where Sigma/Sigma0 = 0.5
+        There must be a way to find model0 where mass = 0
+        args and kwargs pass to scipy.optimize.root_scalar() to find 
+        root of func. Useful kwargs might be:
+            x0: float
+                initial guess
+            x1: float
+                second guess
+            bracket: tuple of 2 floats
+                interval for bracketing a guess, must have different
+                signs at each bracket value
+        Returns:
+            scipy.optimize.RootResults
+        """
+        from scipy.interpolate import CubicSpline
+        from scipy.optimize import root_scalar
+
+        try:
+            model0 = Model(self.alpha,0)
+        except:
+            raise Exception('Cannot find mplan=0 model to compare with')
+        sig0 = np.average(model0.get_real_surfacedensity(),axis=-1)
+        R = self.mesh.ycenters
+        sig = np.average(self.get_real_surfacedensity(),axis=-1)
+        # interp to find root where sig/sig0=0.5
+        sigfunc = CubicSpline(R,sig/sig0-0.5)
+        return root_scalar(sigfunc,*args,**kwargs)
+
+    def find_dv0(self,*args,**kwargs):
+        """
+        Find where velocity is Keplerian
+        args and kwargs pass to scipy.optimize.root_scalar() to find 
+        root of func. Useful kwargs might be:
+            x0: float
+                initial guess
+            x1: float
+                second guess
+            bracket: tuple of 2 floats
+                interval for bracketing a guess, must have different
+                signs at each bracket value
+        Returns:
+            scipy.optimize.RootResults
+        """
+        from scipy.interpolate import CubicSpline
+        from scipy.optimize import root_scalar
+
+        R = self.mesh.ycenters
+        # midplane average gas vphi in rotating frame
+        vphirot = np.average(self.mesh.read_state('gasvx')[-1],axis=-1)
+        omegaframe = float(self.mesh.variables['OMEGAFRAME'])
+        vphi = vphirot + R*omegaframe
+        GM = float(self.mesh.variables['G'])*float(self.mesh.variables['MSTAR'])
+        vkep = np.sqrt(GM/R)
+        dv = (vphi - vkep)/vkep
+        # interp to find root where dv=0
+        dvfunc = CubicSpline(R,dv)
+        return root_scalar(dvfunc,*args,**kwargs)
+
 def create_grid(fargodir,nx,ny,nz=1,domain=None,
                  nout=-1,quiet=False):
     """
